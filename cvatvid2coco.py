@@ -158,7 +158,6 @@ def convert(argv):
                         prevLoc = locArr
                         pointAvailable = True
                 if not pointAvailable and len(prevLoc) > 0:
-                    print(prevLoc)
                     keyPoint = []
                     for loc in prevLoc:
                         keyPoint.append(float(loc))
@@ -220,4 +219,5 @@ def write_json(json_path, dic):
     print(f"Wrote json to {json_path}")
 
 #python cvatvid2coco.py -i D:\Autimatic\workspace\transformer\annotations.xml -o D:\Autimatic\workspace\transformer\data_Test.json -m D:\Autimatic\workspace\transformer\images
-convert(sys.argv[1:])
+if __name__ == '__main__':
+    convert(sys.argv[1:])

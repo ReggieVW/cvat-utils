@@ -310,5 +310,6 @@ def convert(argv):
         json_f.close()
         dumper.close_root()
 
-convert(sys.argv[1:])
+if __name__ == '__main__':
+    convert(sys.argv[1:])
 #print(stream.getvalue())
