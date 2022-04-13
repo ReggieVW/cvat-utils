@@ -15,7 +15,7 @@ from tqdm import tqdm
 from cocojson.utils.common import path, get_imgs_from_dir
 
 
-def convert(argv):
+def main(argv):
     inputfile = ''
     outputfile = ''
     try:
@@ -220,4 +220,4 @@ def write_json(json_path, dic):
 
 #python cvatvid2coco.py -i D:\Autimatic\workspace\transformer\annotations.xml -o D:\Autimatic\workspace\transformer\data_Test.json -m D:\Autimatic\workspace\transformer\images
 if __name__ == '__main__':
-    convert(sys.argv[1:])
+    main(sys.argv[1:])

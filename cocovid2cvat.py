@@ -170,7 +170,7 @@ def fivewise(iterable):
     a = iter(iterable)
     return zip(a, a, a, a, a)
 
-def convert(argv):
+def main(argv):
     withKeyPoints=True
     inputfile = ''
     outputfile = ''
@@ -311,5 +311,5 @@ def convert(argv):
         dumper.close_root()
 
 if __name__ == '__main__':
-    convert(sys.argv[1:])
+    main(sys.argv[1:])
 #print(stream.getvalue())
