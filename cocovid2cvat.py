@@ -6,6 +6,7 @@ from collections import OrderedDict
 import json
 import os
 from xml.sax.saxutils import XMLGenerator
+import sys, getopt
 
 class XmlAnnotationWriter:
     def __init__(self, file):
@@ -169,8 +170,25 @@ def fivewise(iterable):
     a = iter(iterable)
     return zip(a, a, a, a, a)
 
-def convert(withKeyPoints=False):
-    with open('out.xml', 'w') as f:
+def convert(argv):
+    withKeyPoints=True
+    inputfile = ''
+    outputfile = ''
+    try:
+        opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
+    except getopt.GetoptError:
+        print ('cocovid2cvat.py -i <inputfile> -o <outputfile>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('cocovid2cvat.py -i <inputfile> -o <outputfile>')
+            sys.exit()
+        elif opt in ("-i", "--ifile"):
+            inputfile = arg
+        elif opt in ("-o", "--ofile"):
+            outputfile = arg
+
+    with open(outputfile, 'w') as f:
         #stream = StringIO();
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
@@ -182,7 +200,7 @@ def convert(withKeyPoints=False):
         frameNo = 0
         point_track_id = 0
         # Opening JSON file
-        json_f = open('000486_mpii_train.json')
+        json_f = open(inputfile)
         # returns JSON object as
         # a dictionary
         trackids = []
@@ -292,5 +310,5 @@ def convert(withKeyPoints=False):
         json_f.close()
         dumper.close_root()
 
-convert(True)
+convert(sys.argv[1:])
 #print(stream.getvalue())
