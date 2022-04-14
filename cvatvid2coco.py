@@ -117,23 +117,23 @@ def main(argv):
 
     this_annot_id = 1
 
-    groupIds = []
+    group_ids = []
     for track_elem in root.findall("track"):
         if ('group_id' in track_elem.attrib):
             group_id = int(track_elem.attrib["group_id"])
-            if group_id not in groupIds:
-                groupIds.append(group_id)
+            if group_id not in group_ids:
+                group_ids.append(group_id)
 
-    for groupId in groupIds:
-        for frameIndex in range(start_frame,stop_frame):
-            keyPoints = []
-            prevLoc = []
-            for labelIndex in range(17):
-                pointAvailable = False
+    for group_id in group_ids:
+        for frame_index in range(start_frame,stop_frame):
+            key_points = []
+            prev_loc = []
+            for label_index in range(17):
+                is_point_available = False
                 for track_elem in root.findall("track"):
-                    if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != groupId:
+                    if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != group_id:
                         continue
-                    if key_body_labels[labelIndex] != track_elem.attrib["label"]:
+                    if key_body_labels[label_index] != track_elem.attrib["label"]:
                         continue
                     tid = int(track_elem.attrib["id"])
                     #catid = cat_name2id[track_elem.attrib["label"]]
@@ -143,34 +143,34 @@ def main(argv):
                         else:
                             visibil = 1
                         frame_id = int(point_elem.attrib["frame"])
-                        if int(frame_id) != frameIndex:
+                        if int(frame_id) != frame_index:
                             continue
                         outside = int(point_elem.attrib["outside"])
                         occluded = bool(int(point_elem.attrib["occluded"]))
                         keyframe = bool(int(point_elem.attrib["keyframe"]))
                         points = point_elem.attrib["points"]
                         locArr = points.split(',')
-                        keyPoint = []
+                        key_point = []
                         for loc in locArr:
-                            keyPoint.append(float(loc))
-                        keyPoint.append(visibil)
-                        keyPoints.extend(keyPoint)
-                        prevLoc = locArr
-                        pointAvailable = True
-                if not pointAvailable and len(prevLoc) > 0:
-                    keyPoint = []
-                    for loc in prevLoc:
-                        keyPoint.append(float(loc))
-                    keyPoint.append(0)
-                    keyPoints.extend(keyPoint)
+                            key_point.append(float(loc))
+                        key_point.append(visibil)
+                        key_points.extend(key_point)
+                        prev_loc = locArr
+                        is_point_available = True
+                if not is_point_available and len(prev_loc) > 0:
+                    key_point = []
+                    for loc in prev_loc:
+                        key_point.append(float(loc))
+                    key_point.append(0)
+                    key_points.extend(key_point)
 
 
             if img_root is None:
                 img_id = 0
             else:
-                img_id = img_idx2id[frameIndex - start_frame]
+                img_id = img_idx2id[frame_index - start_frame]
             for track_elem in root.findall("track"):
-                if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != groupId:
+                if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != group_id:
                     continue
                 tid = int(track_elem.attrib["id"])
                 label_elem = track_elem.attrib["label"]
@@ -179,13 +179,12 @@ def main(argv):
                     continue
                 catid = cat_name2id[label_elem]
                 for box_elem in track_elem.findall("box"):
-                    if int(box_elem.attrib["frame"]) != frameIndex:
+                    if int(box_elem.attrib["frame"]) != frame_index:
                             continue
                     if bool(int(box_elem.attrib["outside"])):
                         continue
                     frame_idx = int(box_elem.attrib["frame"])
                     #imgid = img_idx2id[frame_idx - start_frame]
-                    imgId = 0
                     occluded = bool(int(box_elem.attrib["occluded"]))
                     keyframe = bool(int(box_elem.attrib["keyframe"]))
                     l = float(box_elem.attrib["xtl"])
@@ -197,15 +196,15 @@ def main(argv):
                     annot_dict = {
                         "id": this_annot_id,
                         "image_id": img_id,
-                        "frame_id": frameIndex,
+                        "frame_id": frame_idx,
                         "category_id": 1,
-                        "keypoints": keyPoints,
+                        "keypoints": key_points,
                         "bbox": [l, t, w, h],
                         "area": w * h,
                         "iscrowd": 0,
+                        "track_id":group_id,
                         "attributes": {
                             "occluded": occluded,
-                            "track_id":groupId,
                             "keyframe": keyframe,
                         },
                     }

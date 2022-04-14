@@ -193,47 +193,46 @@ def main(argv):
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
         key_labels = ["nose", "", "", "", "" , "leftShoulder","rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
-        "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle",  "REye", "LEye", "REar",
-        "leftEar","leftBigToe","leftSmallToe","leftHeel","rightBigToe","rightSmallToe","rightHeel","Background"]
+        "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"]
         id = 0
         frame_seq = 0
-        frameNo = 0
+        frame_no = 0
         point_track_id = 0
         # Opening JSON file
         json_f = open(inputfile)
         # returns JSON object as
         # a dictionary
-        trackids = []
+        track_ids = []
         max_track_id = 0
         json_data = json.load(json_f)
         for data in json_data ["annotations"]:
             track_id = data["track_id"]
-            if track_id not in trackids:
-                trackids.append(track_id)
-        for peopleNo in trackids:
-            maxFrameId = 0
-            minFrameId = 9999
+            if track_id not in track_ids:
+                track_ids.append(track_id)
+        for people_no in track_ids:
+            max_frame_id = 0
+            min_frame_id = 9999
             for data in json_data["annotations"]:
                 track_id = data["track_id"]
                 frame_id = data["frame_id"]
-                if peopleNo != track_id:
+                if people_no != track_id:
                     continue
-                if frame_id > maxFrameId:
-                    maxFrameId = frame_id
-                if frame_id < minFrameId:
-                    minFrameId = frame_id
+                if frame_id > max_frame_id:
+                    max_frame_id = frame_id
+                if frame_id < min_frame_id:
+                    min_frame_id = frame_id
             # box
             track = {
                 'id': str(point_track_id),
                 'label': 'person',
-                'group_id': str(peopleNo)
+                'group_id': str(people_no)
             }
             dumper.open_track(track)
             point_track_id += 1
             for data in json_data["annotations"]:
                 # Iterating through the json
                 track_id = data["track_id"]
-                if peopleNo != track_id:
+                if people_no != track_id:
                     continue
                 box = data["bbox"]
                # for a,b,c,d, z in fivewise(box):
@@ -245,15 +244,15 @@ def main(argv):
                     ("xbr", "{:.2f}".format(c)),
                     ("ybr", "{:.2f}".format(d))
                     ]))
-                    frameNo = data["frame_id"]
-                    shape["frame"] = str(frameNo)
+                    frame_no = data["frame_id"]
+                    shape["frame"] = str(frame_no)
                     shape["keyframe"] = str(0)
                     shape["outside"] = str(0)
                     shape["occluded"] = str(0)
                     shape["z_order"] = str(0)
-                    if frameNo == 0 or frameNo % 5 ==0:
+                    if frame_no == 0 or frame_no % 5 ==0:
                         shape["keyframe"] = str(1)
-                    if frameNo == maxFrameId:
+                    if frame_no == max_frame_id:
                         shape["outside"] = str(1)
                         shape["keyframe"] = str(1)
                     dumper.open_box(shape)
@@ -261,14 +260,14 @@ def main(argv):
             dumper.close_track()
             if(withKeyPoints):
                 # points
-                for pointNo in range(17):
-                    keyPoint = True
-                    if (pointNo > 0 and pointNo < 5):
+                for point_no in range(17):
+                    key_point = True
+                    if (point_no > 0 and point_no < 5):
                         continue
                     track = {
                         'id': str(point_track_id),
-                        'label': key_labels[pointNo],
-                        'group_id': str(peopleNo)
+                        'label': key_labels[point_no],
+                        'group_id': str(people_no)
                     }
                     dumper.open_track(track)
                     point_track_id += 1
@@ -276,22 +275,22 @@ def main(argv):
                     for data in json_data["annotations"]:
                         # Iterating through the json
                         track_id = data["track_id"]
-                        if peopleNo != track_id:
+                        if people_no != track_id:
                             continue
-                        frameNo = data["frame_id"]
-                        keyPointNo = 0
+                        frame_no = data["frame_id"]
+                        key_point_no = 0
                         for keypoint in data["keypoints"]:
                             for x,y,z in threewise(keypoint):
-                                if keyPointNo != pointNo:
+                                if key_point_no != point_no:
                                     continue
                                 #dumper.open_track(track)
                                 shape = OrderedDict()
-                                shape["frame"] = str(frameNo)
+                                shape["frame"] = str(frame_no)
                                 shape["outside"] = str(0)
                                 shape["keyframe"] = str(0)
-                                if frameNo == 0 or frameNo % 5 ==0:
+                                if frame_no == 0 or frame_no % 5 ==0:
                                     shape["keyframe"] = str(1)
-                                if frameNo == maxFrameId or z < 0.3:
+                                if frame_no == max_frame_id or z < 0.3:
                                     shape["outside"] = str(1)
                                     shape["keyframe"] = str(1)
                                 else:
@@ -301,11 +300,11 @@ def main(argv):
                                 shape.update({"points":'{:.2f},{:.2f}'.format(x, y)})
                                 dumper.open_points(shape)
                                 dumper.close_points()
-                                keyPoint = False
-                            keyPointNo += 1
+                                key_point = False
+                            key_point_no += 1
                         index += 1
                     dumper.close_track()
-                    pointNo += 1
+                    point_no += 1
         # Closing file
         json_f.close()
         dumper.close_root()
