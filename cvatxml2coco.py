@@ -22,11 +22,11 @@ def main(argv):
     try:
       opts, args = getopt.getopt(argv,"hi:o:m:",["ifile=","ofile=","mdir="])
     except getopt.GetoptError:
-      print ('cvatvid2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
+      print ('cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
       sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('cvatvid2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
+            print('cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             inputfile = arg

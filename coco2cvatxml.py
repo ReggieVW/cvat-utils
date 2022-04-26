@@ -177,11 +177,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
     except getopt.GetoptError:
-        print ('cocovid2cvat.py -i <inputfile> -o <outputfile>')
+        print ('coco2cvatxml.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('cocovid2cvat.py -i <inputfile> -o <outputfile>')
+            print('coco2cvatxml.py -i <inputfile> -o <outputfile>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             inputfile = arg
@@ -189,21 +189,15 @@ def main(argv):
             outputfile = arg
 
     with open(outputfile, 'w') as f:
-        #stream = StringIO();
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
         key_labels = ["nose", "", "", "", "" , "left_shoulder","right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
         "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
-        id = 0
-        frame_seq = 0
         frame_no = 0
         point_track_id = 0
         # Opening JSON file
         json_f = open(inputfile)
-        # returns JSON object as
-        # a dictionary
         track_ids = []
-        max_track_id = 0
         json_data = json.load(json_f)
         for data in json_data ["annotations"]:
             track_id = data["track_id"]
@@ -211,7 +205,6 @@ def main(argv):
                 track_ids.append(track_id)
         for people_no in track_ids:
             max_frame_id = 0
-            min_frame_id = 9999
             for data in json_data["annotations"]:
                 track_id = data["track_id"]
                 frame_id = data["frame_id"]
@@ -219,9 +212,6 @@ def main(argv):
                     continue
                 if frame_id > max_frame_id:
                     max_frame_id = frame_id
-                if frame_id < min_frame_id:
-                    min_frame_id = frame_id
-            # box
             track = {
                 'id': str(point_track_id),
                 'label': 'person',
@@ -230,7 +220,6 @@ def main(argv):
             dumper.open_track(track)
             point_track_id += 1
             for data in json_data["annotations"]:
-                # Iterating through the json
                 track_id = data["track_id"]
                 if people_no != track_id:
                     continue
@@ -258,10 +247,10 @@ def main(argv):
                     dumper.open_box(shape)
                     dumper.close_box()
             dumper.close_track()
+            # Body key points to XML 
             if(withKeyPoints):
                 # points
                 for point_no in range(17):
-                    key_point = True
                     if (point_no > 0 and point_no < 5):
                         continue
                     track = {
@@ -273,7 +262,6 @@ def main(argv):
                     point_track_id += 1
                     index = 0
                     for data in json_data["annotations"]:
-                        # Iterating through the json
                         track_id = data["track_id"]
                         if people_no != track_id:
                             continue
@@ -297,7 +285,6 @@ def main(argv):
                                 shape.update({"points":'{:.2f},{:.2f}'.format(x, y)})
                                 dumper.open_points(shape)
                                 dumper.close_points()
-                                key_point = False
                             key_point_no += 1
                         index += 1
                     dumper.close_track()
