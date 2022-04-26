@@ -24,7 +24,7 @@ python cvatxml2coco.py -i \workspace\cvat-utils\annotations.xml -o \workspace\cv
 ```
 
 
-# CVAT COCO JSON to XML
+# COCO JSON to CVAT XML
 
 Converts COCO JSON to CVAT XML.
 
