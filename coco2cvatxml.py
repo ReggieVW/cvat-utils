@@ -192,8 +192,8 @@ def main(argv):
         #stream = StringIO();
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
-        key_labels = ["nose", "", "", "", "" , "leftShoulder","rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
-        "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"]
+        key_labels = ["nose", "", "", "", "" , "left_shoulder","right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
+        "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
         id = 0
         frame_seq = 0
         frame_no = 0
@@ -250,11 +250,11 @@ def main(argv):
                     shape["outside"] = str(0)
                     shape["occluded"] = str(0)
                     shape["z_order"] = str(0)
-                    if frame_no == 0 or frame_no % 5 ==0:
-                        shape["keyframe"] = str(1)
+                    #if frame_no == 0 or frame_no % 5 ==0:
+                    shape["keyframe"] = str(1)
                     if frame_no == max_frame_id:
                         shape["outside"] = str(1)
-                        shape["keyframe"] = str(1)
+                        #shape["keyframe"] = str(1)
                     dumper.open_box(shape)
                     dumper.close_box()
             dumper.close_track()
@@ -287,12 +287,9 @@ def main(argv):
                                 shape = OrderedDict()
                                 shape["frame"] = str(frame_no)
                                 shape["outside"] = str(0)
-                                shape["keyframe"] = str(0)
-                                if frame_no == 0 or frame_no % 5 ==0:
-                                    shape["keyframe"] = str(1)
-                                if frame_no == max_frame_id or z < 0.3:
+                                shape["keyframe"] = str(1)
+                                if frame_no == max_frame_id or z < 0.4 :
                                     shape["outside"] = str(1)
-                                    shape["keyframe"] = str(1)
                                 else:
                                     shape["outside"] = str(0)
                                 shape["occluded"] = str(0)

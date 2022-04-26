@@ -18,6 +18,7 @@ from cocojson.utils.common import path, get_imgs_from_dir
 def main(argv):
     inputfile = ''
     outputfile = ''
+    img_root = None
     try:
       opts, args = getopt.getopt(argv,"hi:o:m:",["ifile=","ofile=","mdir="])
     except getopt.GetoptError:
@@ -78,8 +79,7 @@ def main(argv):
         "images": [],
     }
 
-    key_body_labels = ["nose", "", "", "", "" , "leftShoulder","rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
-     "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"]
+    key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow", "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
     labels = meta.find("task").find("labels")
     this_cat_id = 2
@@ -94,26 +94,27 @@ def main(argv):
         coco_dict["categories"].append(cat_dict)
 
     cat_dict = {"id": 1, "name": "person",
-    "keypoints": ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow", "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"],
+    "keypoints": key_body_labels,
     "skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]],
     "supercategory": "person"}
     coco_dict["categories"].append(cat_dict)
 
-    img_root = path(img_root, is_dir=True)
-    img_paths = get_imgs_from_dir(img_root)
-    this_img_id = 1
-    img_idx2id = {}
-    for i, img_path in enumerate(img_paths):
-        w, h = Image.open(img_path).size
-        img_idx2id[i] = this_img_id
-        img_dict = {
-            "id": this_img_id,
-            "file_name": str(img_path.relative_to(img_root)),
-            "height": h,
-            "width": w,
-        }
-        this_img_id += 1
-        coco_dict["images"].append(img_dict)
+    if img_root is not  None:
+        img_root = path(img_root, is_dir=True)
+        img_paths = get_imgs_from_dir(img_root)
+        this_img_id = 1
+        img_idx2id = {}
+        for i, img_path in enumerate(img_paths):
+            w, h = Image.open(img_path).size
+            img_idx2id[i] = this_img_id
+            img_dict = {
+                "id": this_img_id,
+                "file_name": str(img_path.relative_to(img_root)),
+                "height": h,
+                "width": w,
+            }
+            this_img_id += 1
+            coco_dict["images"].append(img_dict)
 
     this_annot_id = 1
 
@@ -123,6 +124,13 @@ def main(argv):
             group_id = int(track_elem.attrib["group_id"])
             if group_id not in group_ids:
                 group_ids.append(group_id)
+
+    if len(group_ids) == 0:
+        for track_elem in root.findall("track"):
+            if ('id' in track_elem.attrib):
+                group_id = int(track_elem.attrib["id"])
+                if group_id not in group_ids:
+                    group_ids.append(group_id)
 
     for group_id in group_ids:
         for frame_index in range(start_frame,stop_frame):
@@ -164,13 +172,14 @@ def main(argv):
                     key_point.append(0)
                     key_points.extend(key_point)
 
-
             if img_root is None:
                 img_id = 0
             else:
                 img_id = img_idx2id[frame_index - start_frame]
             for track_elem in root.findall("track"):
-                if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != group_id:
+                if (('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != group_id):
+                    continue
+                if (('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != group_id):
                     continue
                 tid = int(track_elem.attrib["id"])
                 label_elem = track_elem.attrib["label"]
@@ -193,19 +202,25 @@ def main(argv):
                     b = float(box_elem.attrib["ybr"])
                     w = r - l
                     h = b - t
+                    actions = []
+                    for attr_elem in box_elem.findall("attribute"):
+                        if str(attr_elem.text) == "true" or str(attr_elem.text) == "True":
+                            actions.append(attr_elem.attrib["name"])
                     annot_dict = {
                         "id": this_annot_id,
                         "image_id": img_id,
                         "frame_id": frame_idx,
                         "category_id": 1,
                         "keypoints": key_points,
-                        "bbox": [l, t, w, h],
+                        "bbox": [l, t, r, b],
+                        #"bbox": [l, t, w, h],
                         "area": w * h,
                         "iscrowd": 0,
                         "track_id":group_id,
                         "attributes": {
                             "occluded": occluded,
                             "keyframe": keyframe,
+                            "activity":actions
                         },
                     }
                     this_annot_id += 1
@@ -217,6 +232,5 @@ def write_json(json_path, dic):
         json.dump(dic, f, indent=2)
     print(f"Wrote json to {json_path}")
 
-#python cvatvid2coco.py -i D:\Autimatic\workspace\transformer\annotations.xml -o D:\Autimatic\workspace\transformer\data_Test.json -m D:\Autimatic\workspace\transformer\images
 if __name__ == '__main__':
     main(sys.argv[1:])
