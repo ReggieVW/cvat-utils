@@ -1,18 +1,23 @@
 """
-Convert from CVAT Video XML to COCO JSON
+Convert from CVAT XML to COCO JSON
 """
 
 import xml.etree.ElementTree as ET
 import json
-import sys, getopt
+import sys
+import getopt
 
 from datetime import datetime, date
 from pathlib import Path
-
 from PIL import Image
-from tqdm import tqdm
-
+#from tqdm import tqdm
 from cocojson.utils.common import path, get_imgs_from_dir
+
+
+def write_json(json_path, dic):
+    with open(json_path, "w") as f:
+        json.dump(dic, f, indent=2)
+    print(f"Wrote json to {json_path}")
 
 
 def main(argv):
@@ -20,10 +25,11 @@ def main(argv):
     outputfile = ''
     img_root = None
     try:
-      opts, args = getopt.getopt(argv,"hi:o:m:",["ifile=","ofile=","mdir="])
+        opts, args = getopt.getopt(
+            argv, "hi:o:m:", ["ifile=", "ofile=", "mdir="])
     except getopt.GetoptError:
-      print ('cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
-      sys.exit(2)
+        print('cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
+        sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print('cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>')
@@ -79,7 +85,8 @@ def main(argv):
         "images": [],
     }
 
-    key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow", "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
+    key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow",
+                       "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
     labels = meta.find("task").find("labels")
     this_cat_id = 2
@@ -94,12 +101,12 @@ def main(argv):
         coco_dict["categories"].append(cat_dict)
 
     cat_dict = {"id": 1, "name": "person",
-    "keypoints": key_body_labels,
-    "skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]],
-    "supercategory": "person"}
+                "keypoints": key_body_labels,
+                "skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]],
+                "supercategory": "person"}
     coco_dict["categories"].append(cat_dict)
 
-    if img_root is not  None:
+    if img_root is not None:
         img_root = path(img_root, is_dir=True)
         img_paths = get_imgs_from_dir(img_root)
         this_img_id = 1
@@ -133,7 +140,7 @@ def main(argv):
                     group_ids.append(group_id)
 
     for group_id in group_ids:
-        for frame_index in range(start_frame,stop_frame):
+        for frame_index in range(start_frame, stop_frame):
             key_points = []
             prev_loc = []
             for label_index in range(17):
@@ -189,7 +196,7 @@ def main(argv):
                 catid = cat_name2id[label_elem]
                 for box_elem in track_elem.findall("box"):
                     if int(box_elem.attrib["frame"]) != frame_index:
-                            continue
+                        continue
                     if bool(int(box_elem.attrib["outside"])):
                         continue
                     frame_idx = int(box_elem.attrib["frame"])
@@ -213,24 +220,20 @@ def main(argv):
                         "category_id": 1,
                         "keypoints": key_points,
                         "bbox": [l, t, r, b],
-                        #"bbox": [l, t, w, h],
+                        # "bbox": [l, t, w, h],
                         "area": w * h,
                         "iscrowd": 0,
-                        "track_id":group_id,
+                        "track_id": group_id,
                         "attributes": {
                             "occluded": occluded,
                             "keyframe": keyframe,
-                            "activity":actions
+                            "activity": actions
                         },
                     }
                     this_annot_id += 1
                     coco_dict["annotations"].append(annot_dict)
     write_json(out_json, coco_dict)
 
-def write_json(json_path, dic):
-    with open(json_path, "w") as f:
-        json.dump(dic, f, indent=2)
-    print(f"Wrote json to {json_path}")
 
 if __name__ == '__main__':
     main(sys.argv[1:])

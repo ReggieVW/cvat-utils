@@ -1,12 +1,17 @@
-from xml.sax import saxutils
+"""
+Convert from COCO JSON to CVAT XML
+"""
+
+import json
 import sys
-from tempfile import TemporaryFile
+import sys
+import getopt
+
+from xml.sax import saxutils
 from io import StringIO
 from collections import OrderedDict
-import json
-import os
 from xml.sax.saxutils import XMLGenerator
-import sys, getopt
+
 
 class XmlAnnotationWriter:
     def __init__(self, file):
@@ -15,7 +20,7 @@ class XmlAnnotationWriter:
         self.xmlgen = XMLGenerator(self.file, 'utf-8')
         self._level = 0
 
-    def _indent(self, newline = True):
+    def _indent(self, newline=True):
         if newline:
             self.xmlgen.ignorableWhitespace("\n")
         self.xmlgen.ignorableWhitespace("  " * self._level)
@@ -30,7 +35,7 @@ class XmlAnnotationWriter:
         self.xmlgen.startDocument()
         self.xmlgen.startElement("annotations", {})
         self._level += 1
-        #self._add_version()
+        # self._add_version()
 
     def _add_meta(self, meta):
         self._level += 1
@@ -154,30 +159,35 @@ class XmlAnnotationWriter:
         self.xmlgen.endElement("annotations")
         self.xmlgen.endDocument()
 
+
 def pairwise(iterable):
     a = iter(iterable)
     return zip(a, a)
+
 
 def threewise(iterable):
     a = iter(iterable)
     return zip(a, a, a)
 
+
 def fourwise(iterable):
     a = iter(iterable)
     return zip(a, a, a, a)
+
 
 def fivewise(iterable):
     a = iter(iterable)
     return zip(a, a, a, a, a)
 
+
 def main(argv):
-    withKeyPoints=True
+    withKeyPoints = True
     inputfile = ''
     outputfile = ''
     try:
-        opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
+        opts, args = getopt.getopt(argv, "hi:o:", ["ifile=", "ofile="])
     except getopt.GetoptError:
-        print ('coco2cvatxml.py -i <inputfile> -o <outputfile>')
+        print('coco2cvatxml.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -191,15 +201,15 @@ def main(argv):
     with open(outputfile, 'w') as f:
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
-        key_labels = ["nose", "", "", "", "" , "left_shoulder","right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
-        "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
+        key_labels = ["nose", "", "", "", "", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
+                      "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
         frame_no = 0
         point_track_id = 0
         # Opening JSON file
         json_f = open(inputfile)
         track_ids = []
         json_data = json.load(json_f)
-        for data in json_data ["annotations"]:
+        for data in json_data["annotations"]:
             track_id = data["track_id"]
             if track_id not in track_ids:
                 track_ids.append(track_id)
@@ -225,13 +235,13 @@ def main(argv):
                     continue
                 box = data["bbox"]
                # for a,b,c,d, z in fivewise(box):
-                for a,b,c,d in fourwise(box[:4]):
+                for a, b, c, d in fourwise(box[:4]):
                     shape = OrderedDict()
                     shape.update(OrderedDict([
-                    ("xtl", "{:.2f}".format(a)),
-                    ("ytl", "{:.2f}".format(b)),
-                    ("xbr", "{:.2f}".format(c)),
-                    ("ybr", "{:.2f}".format(d))
+                        ("xtl", "{:.2f}".format(a)),
+                        ("ytl", "{:.2f}".format(b)),
+                        ("xbr", "{:.2f}".format(c)),
+                        ("ybr", "{:.2f}".format(d))
                     ]))
                     frame_no = data["frame_id"]
                     shape["frame"] = str(frame_no)
@@ -239,7 +249,7 @@ def main(argv):
                     shape["outside"] = str(0)
                     shape["occluded"] = str(0)
                     shape["z_order"] = str(0)
-                    #if frame_no == 0 or frame_no % 5 ==0:
+                    # if frame_no == 0 or frame_no % 5 ==0:
                     shape["keyframe"] = str(1)
                     if frame_no == max_frame_id:
                         shape["outside"] = str(1)
@@ -247,7 +257,7 @@ def main(argv):
                     dumper.open_box(shape)
                     dumper.close_box()
             dumper.close_track()
-            # Body key points to XML 
+            # Body key points to XML
             if(withKeyPoints):
                 # points
                 for point_no in range(17):
@@ -268,21 +278,22 @@ def main(argv):
                         frame_no = data["frame_id"]
                         key_point_no = 0
                         for keypoint in data["keypoints"]:
-                            for x,y,z in threewise(keypoint):
+                            for x, y, z in threewise(keypoint):
                                 if key_point_no != point_no:
                                     continue
-                                #dumper.open_track(track)
+                                # dumper.open_track(track)
                                 shape = OrderedDict()
                                 shape["frame"] = str(frame_no)
                                 shape["outside"] = str(0)
                                 shape["keyframe"] = str(1)
-                                if frame_no == max_frame_id or z < 0.4 :
+                                if frame_no == max_frame_id or z < 0.4:
                                     shape["outside"] = str(1)
                                 else:
                                     shape["outside"] = str(0)
                                 shape["occluded"] = str(0)
                                 shape["z_order"] = str(0)
-                                shape.update({"points":'{:.2f},{:.2f}'.format(x, y)})
+                                shape.update(
+                                    {"points": '{:.2f},{:.2f}'.format(x, y)})
                                 dumper.open_points(shape)
                                 dumper.close_points()
                             key_point_no += 1
@@ -293,6 +304,7 @@ def main(argv):
         json_f.close()
         dumper.close_root()
 
+
 if __name__ == '__main__':
     main(sys.argv[1:])
-#print(stream.getvalue())
+# print(stream.getvalue())
