@@ -8,18 +8,18 @@ Converts COCO JSON to CVAT XML.
 ## Usage
 
 ```bash
-usage: coco2cvatxml.py -i <inputfile> -o <outputfile>
+usage: coco2cvatxml.py [-h] --coco FILE --cvat-xml FILE 
 
 positional arguments:
-  inputfile          Path to COCO JSON
-  outputfile         Path to CVAT XML
+  coco             Path to COCO JSON
+  cvat-xml         Path to CVAT XML
 
 ```
 
 ## Examples
 
 ```bash
-python coco2cvatxml.py -i task_1.json -o annotations.xml
+python coco2cvatxml.py --coco task_1.json --cvat-xml annotations.xml
 ```
 
 # CVAT XML to COCO JSON
@@ -29,19 +29,19 @@ Converts CVAT XML to COCO JSON.
 ## Usage
 
 ```bash
-usage: cvatxml2coco.py -i <inputfile> -o <outputfile> -m <imageDir>
+usage: cvatxml2coco.py [-h] --cvat-xml FILE [--image-dir DIRECTORY] --coco FILE
 
 positional arguments:
-  inputfile          Path to CVAT XML
-  outputfile         Path to COCO JSON
-  imageDir           Path to images root directory (optional)
+  cvat-xml          Path to CVAT XML
+  coco              Path to COCO JSON
+  image-dir         Path to images root directory (optional)
 
 ```
 
 ## Examples
 
 ```bash
-python cvatxml2coco.py -i annotations.xml -o out.json -m \images\
+python cvatxml2coco.py --cvat-xml annotations.xml --coco out.json --image-dir \images\
 ```
 
 # The Annotations
