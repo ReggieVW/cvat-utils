@@ -225,9 +225,9 @@ def convert(xmlfile, img_root, outputfile):
                         "keypoints": key_points,
                         "bbox": [x, y, r, b],
                         # "bbox": [l, t, w, h],
-                        #"area": w * h,
-                        #Is not a crowd (meaning it’s a single object)
-                        #"iscrowd": 0,
+                        # "area": w * h,
+                        # Is not a crowd (meaning it’s a single object)
+                        # "iscrowd": 0,
                         "track_id": xml_person_id,
                         "occluded": occluded,
                         "keyframe": keyframe,
@@ -255,7 +255,6 @@ def parse_args():
         '--coco', metavar='FILE', required=True,
         help='FILE for output annotations in JSON format'
     )
-
     return parser.parse_args()
 
 
