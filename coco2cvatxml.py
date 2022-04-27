@@ -277,7 +277,7 @@ def convert(jsonFile, xmlFile, withBodyKeyPoints):
 def parse_args():
     """Parse arguments of command line"""
     parser = argparse.ArgumentParser(
-        description='Convert CVAT XML annotations to COCO JSON format'
+        description='Convert COCO JSON format to CVAT XML annotations'
     )
     parser.add_argument(
         '--cvat-xml', metavar='FILE', required=True,

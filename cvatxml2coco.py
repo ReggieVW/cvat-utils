@@ -241,7 +241,7 @@ def convert(xmlfile, img_root, outputfile):
 def parse_args():
     """Parse arguments of command line"""
     parser = argparse.ArgumentParser(
-        description='Convert CVAT XML annotations to COCO JSON format'
+        description='Convert CVAT XML to COCO JSON format'
     )
     parser.add_argument(
         '--cvat-xml', metavar='FILE', required=True,
