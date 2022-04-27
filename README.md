@@ -64,7 +64,7 @@ annotation{
   "image_id"    : int, 
   "frame_id"    : int, → The frame id of this frame in the video
   "activity"    : [action1,action2...] → The person's actions which are captured  
-  "category_id" :1 → This ID 1 is for Human.<br />
+  "category_id" :1 → This ID 1 is for Human.
 }
 
 categories[{
