@@ -19,7 +19,7 @@ positional arguments:
 ## Examples
 
 ```bash
-python coco2cvatxml.py -i \workspace\cvat-utils\out.json -o \workspace\cvat-utils\annotations.xml
+python coco2cvatxml.py -i task_1.json -o annotations.xml
 ```
 
 # CVAT XML to COCO JSON
@@ -41,7 +41,7 @@ positional arguments:
 ## Examples
 
 ```bash
-python cvatxml2coco.py -i \workspace\cvat-utils\annotations.xml -o \workspace\cvat-utils\out.json -m \workspace\cvat-utils\images\
+python cvatxml2coco.py -i annotations.xml -o out.json -m \images\
 ```
 
 # The Annotations
@@ -51,14 +51,29 @@ There are 17 key points annotated for each person.
 ![image](https://user-images.githubusercontent.com/35894891/165474348-1b7f7082-37db-4ff9-8cf8-0b5d3130565a.png)
 
 ## COCO JSON
-The annotation json file is in the format of MSCOCO dataset and you can use pycoco tools to read the annotations.
-There is one annotation file for one video which contains annotations for every frame in that video. 
+The annotation json file is in the format of MSCOCO dataset. You can use pycoco tools to read the annotations.
+There is one annotation file for one video which contains the annotations from the frames in the video. 
 
-For the person we have the following annotations:
-“track_id”: 1. → the tracking ID of the individual/object, This ID remains constant for that person/object in all the sequences of the video<br />
-“image_id”: 56. → This is the frame ID<br />
-“bbox”: []. → List of 4 elements denoting the bbox location of that person<br />
-“category_id”:1. → this ID 1 is for Human.<br />
-“Keypoints”: []. → A list of 51 elements (17x3, for each key point -(x,y,v)) representing the 17 key points location mentioned above. The list is in format [x1,y1,v1,x2,y2,v2………….] , where 1 is first key point, 2 is second keypoint ans so on . For each (x,y,v), v is either 0 or 1. 0 denotes that the key point location is not available.<br />
-"activity": ["Punch/slap other person","Stand up"] → actions
+For the person we have the following annotations:<br />
+```bash
+annotation{
+  "id"    : int, → Each annotation also has an id (unique to all other annotations in the datase
+  "keypoints"        : [x1,y1,v1,x2,y2,v2...], → x and y indicate pixel positions in the image. v indicates visibility— v=0: not labeled (in which case x=y=0), v=1: labeled but not visible, and v=2: labeled and visible <br />
+  "track_id"    : int, → The tracking ID of the individual/object, This ID remains constant for that person/object in all the sequences of the video<br />
+  "image_id"    : int, 
+  "bbox"    : [x,y,width,height], → Denoting the bbox location of that person. Box coordinates are measured from the top left image corner and are 0-indexed<br />
+  “category_id”:1 → this ID 1 is for Human.<br />
+  "activity": ["Punch/slap other person","Stand up"] → actions
+}
+
+categories[{
+  supercategory": "person",
+  "id": 1,
+  "name": "person",
+  "keypoints": ["nose","left_eye","right_eye","left_ear","right_ear","left_shoulder","right_shoulder","left_elbow","right_elbow","left_wrist","right_wrist",
+  "left_hip","right_hip","left_knee","right_knee","left_ankle","right_ankle"], 
+  "skeleton": [16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13],[6,7],[6,8],[7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7], → defines connectivity                 via a list of keypoint edge pairs 
+}]
+```
+
 
