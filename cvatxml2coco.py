@@ -74,7 +74,7 @@ def convert(xmlfile, img_root, outputfile):
                        "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
     # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
-    # Category ID 1 is for Human, This will be 1 if they are labelled persons.
+    # Category ID 1 is for Human.
     cat_dict_person = {"id": 1, "name": "person",
                        "keypoints": key_body_labels,
                        "skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]],
