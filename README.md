@@ -45,6 +45,8 @@ python cvatxml2coco.py -i \workspace\cvat-utils\annotations.xml -o \workspace\cv
 ```
 
 # The Annotations
+
+## key points person
 There are 17 key points annotated for each person.
 ![image](https://user-images.githubusercontent.com/35894891/165474348-1b7f7082-37db-4ff9-8cf8-0b5d3130565a.png)
 
