@@ -18,7 +18,7 @@ def write_json(json_path, dic):
     print(f"Wrote json to {json_path}")
 
 
-def convert(xmlfile, img_root, outputfile):
+def convert(xmlfile, img_root, jsonfile):
     """
     Transforms an XML in CVAT format to COCO.
     """
@@ -35,8 +35,8 @@ def convert(xmlfile, img_root, outputfile):
     else:
         taskname = taskname.text
 
-    if outputfile:
-        out_json = outputfile
+    if jsonfile:
+        out_json = jsonfile
     else:
         json_file_name = taskname if taskname else Path(xmlfile).stem
         out_json = f"{json_file_name}.json"
