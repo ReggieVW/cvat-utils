@@ -214,8 +214,7 @@ def convert(xmlfile, img_root, outputfile):
                     # The person's actions which are captured
                     actions = []
                     for attr_elem in box_elem.findall("attribute"):
-                        # attr_elem.text.lower()
-                        if str(attr_elem.text) == "true" or str(attr_elem.text) == "True":
+                        if str(attr_elem.text.lower()) == "true":
                             actions.append(attr_elem.attrib["name"])
                     annot_dict = {
                         "id": this_annot_id,
@@ -241,7 +240,7 @@ def convert(xmlfile, img_root, outputfile):
 def parse_args():
     """Parse arguments of command line"""
     parser = argparse.ArgumentParser(
-        description='Convert CVAT XML to COCO JSON format'
+        description='Convert CVAT XML wwwto COCO JSON format'
     )
     parser.add_argument(
         '--cvat-xml', metavar='FILE', required=True,
