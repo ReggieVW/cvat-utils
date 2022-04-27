@@ -58,7 +58,7 @@ For the person we have the following annotations:<br />
 ```bash
 annotation{
   "id"           : int, → Each annotation also has an id (unique to all other annotations)
-  "bbox"         : [x,y,width,height], → Denoting the bbox location of that person. Box coordinates are measured from the top left image corner and are 0-indexed<br />
+  "bbox"         : [x,y,width,height], → Denoting the bbox location of that person. Box coordinates are measured from the top left image corner and are 0-indexed
   "keypoints"    : [x1,y1,v1,x2,y2,v2...], → x and y indicate pixel positions in the image. v indicates visibility— v=0: not labeled (in which case x=y=0), v=1: labeled but not visible, and v=2: labeled and visible 
   "track_id"    : int, → The tracking ID of the individual, This ID remains constant for that person/object in all the sequences of the video
   "image_id"    : int, 
