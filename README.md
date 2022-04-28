@@ -51,23 +51,31 @@ There are 17 key points.
 ![image](https://user-images.githubusercontent.com/35894891/165474348-1b7f7082-37db-4ff9-8cf8-0b5d3130565a.png)
 
 ## COCO JSON
-The annotation json file is in the format of MSCOCO dataset. You can use pycoco tools to read the annotations.
-There is one annotation file for one video which contains the annotations from the frames in the video. 
+The annotation json file is in the format of MSCOCO dataset and is a collection of “info”, “images”, “annotations”, “categories”. There is one annotation file for one video which contains the annotations from the frames in the video. 
+
+```bash
+{
+    "info": {...},
+    "images": [...],
+    "annotations": [...],
+    "categories": [...], 
+}
+```
 
 For the person we have the following annotations:<br />
 ```bash
-annotation{
+annotations:[{
   "id"           : int, → Each annotation also has an id (unique to all other annotations)
+  "category_id"  : 1 → This ID 1 is for Human.
   "bbox"         : [x,y,width,height], → Denoting the bbox location of that person. Box coordinates are measured from the top left image corner and are 0-indexed
   "keypoints"    : [x1,y1,v1,x2,y2,v2...], → x and y indicate pixel positions in the image. v indicates visibility— v=0: not labeled (in which case x=y=0), v=1: labeled but not visible, and v=2: labeled and visible 
   "track_id"    : int, → The tracking ID of the individual, This ID remains constant for that person/object in all the sequences of the video
   "image_id"    : int, 
   "frame_id"    : int, → The frame id of this frame in the video
   "activity"    : [action1,action2...] → The person's actions which are captured  
-  "category_id" :1 → This ID 1 is for Human.
-}
+}]
 
-categories[{
+"categories": [{
   supercategory": "person",
   "id": 1,
   "name": "person",
