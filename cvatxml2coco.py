@@ -23,6 +23,7 @@ def convert(xmlfile, img_root, jsonfile):
     Transforms an XML in CVAT format to COCO.
     """
     # Parse XML
+    print(f"Parse XML {xmlfile}")
     tree = ET.parse(xmlfile)
     root = tree.getroot()
 
@@ -99,17 +100,17 @@ def convert(xmlfile, img_root, jsonfile):
     if img_root is not None:
         img_root = path(img_root, is_dir=True)
         img_paths = get_imgs_from_dir(img_root)
-        this_img_id = 0
+        img_id = 0
         for i, img_path in enumerate(img_paths):
             w, h = Image.open(img_path).size
-            img_idx2id[i] = this_img_id
+            img_idx2id[i] = img_id
             img_dict = {
-                "id": this_img_id,
+                "id": img_id,
                 "file_name": str(img_path.relative_to(img_root)),
                 "height": h,
                 "width": w,
             }
-            this_img_id += 1
+            img_id += 1
             coco_dict["images"].append(img_dict)
 
     this_annot_id = 1
@@ -128,10 +129,12 @@ def convert(xmlfile, img_root, jsonfile):
             if ('id' in track_elem.attrib):
                 xml_person_id = int(track_elem.attrib["id"])
                 label = str(track_elem.attrib["label"])
-                if label.lower() == "person":
+                if label == "person":
                     xml_person_ids.append(xml_person_id)
 
     # Loop through XML according to ID (ID indicates shapes belonging to a specific unique person)
+    print("Loop through XML according to ID")
+    print(xml_person_ids)
     for xml_person_id in xml_person_ids:
         for frame_index in range(start_frame, stop_frame):
             key_points = []
@@ -146,13 +149,11 @@ def convert(xmlfile, img_root, jsonfile):
                     # if body label different => not the body part to convert in this loop
                     if key_body_labels[body_label_idx] != track_elem.attrib["label"]:
                         continue
-
                     for point_elem in track_elem.findall("points"):
                         #  if frame ID different => not the point to convert in this loop
                         point_frame_id = int(point_elem.attrib["frame"])
                         if int(point_frame_id) != frame_index:
                             continue
-
                         # Indicates visibility— 0: outside, 1: labeled but not visible, and 2: labeled and visible
                         if bool(int(point_elem.attrib["outside"])):
                             visibil = 0
@@ -180,16 +181,16 @@ def convert(xmlfile, img_root, jsonfile):
 
             # Convert bbox person
             for track_elem in root.findall("track"):
-                label_elem = track_elem.attrib["label"]
-                label_name = str(label_elem)
-                if label.lower() != "person":
-                    continue
                 # group ID different => not the person to convert in this loop
                 if (('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id):
                     continue
                 if (('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id):
                     continue
                 for box_elem in track_elem.findall("box"):
+                    label_elem = track_elem.attrib["label"]
+                    label_name = str(label_elem)
+                    if label_name != "person":
+                        continue
                     #  if frame ID different => not the bbox to convert in this loop
                     if int(box_elem.attrib["frame"]) != frame_index:
                         continue
@@ -233,6 +234,7 @@ def convert(xmlfile, img_root, jsonfile):
                         "activity": actions
                     }
                     this_annot_id += 1
+                    print(this_annot_id)
                     coco_dict["annotations"].append(annot_dict)
     write_json(out_json, coco_dict)
 

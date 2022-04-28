@@ -149,7 +149,7 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(jsonFile, xmlFile, withBodyKeyPoints):
+def convert(json_file, xml_file, withBodyKeyPoints):
     """
     Transforms COCO json to an XML in CVAT format.
     """
@@ -158,12 +158,13 @@ def convert(jsonFile, xmlFile, withBodyKeyPoints):
                        "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
     # Write the xml file
-    with open(xmlFile, 'w') as f:
+    with open(xml_file, 'w') as f:
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
 
         # Opening the JSON file
-        json_f = open(jsonFile)
+        print(f"Opening the JSON file {json_file}")
+        json_f = open(json_file)
         track_ids_to_convert = []
         json_data = json.load(json_f)
         for data in json_data["annotations"]:
@@ -271,8 +272,10 @@ def convert(jsonFile, xmlFile, withBodyKeyPoints):
                     dumper.close_track()
                     bodykey_idx += 1
         # Closing file
+        print(f"Closing the JSON file {json_f}")
         json_f.close()
         dumper.close_root()
+        print(f"Wrote file {xml_file}")
 
 def parse_args():
     """Parse arguments of command line"""
