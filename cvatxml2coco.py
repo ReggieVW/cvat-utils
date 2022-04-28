@@ -234,7 +234,7 @@ def convert(xmlfile, img_root, jsonfile):
                         "activity": actions
                     }
                     this_annot_id += 1
-                    print(this_annot_id)
+                    print(f"Added annotation id {this_annot_id}")
                     coco_dict["annotations"].append(annot_dict)
     write_json(out_json, coco_dict)
 
