@@ -62,7 +62,7 @@ The annotation json file is in the format of MSCOCO dataset and is a collection 
 }
 ```
 
-For the person we have the following annotations:<br />
+For the person object we have the following annotations:<br />
 ```bash
 annotations:[{
   "id"           : int, → Each annotation also has an id (unique to all other annotations)
