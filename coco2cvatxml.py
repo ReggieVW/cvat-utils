@@ -5,7 +5,6 @@ Convert from COCO JSON to CVAT XML
 
 import json
 import sys
-import sys
 import argparse
 
 from collections import OrderedDict
@@ -272,7 +271,7 @@ def convert(json_file, xml_file, withBodyKeyPoints):
                     dumper.close_track()
                     bodykey_idx += 1
         # Closing file
-        print(f"Closing the JSON file {json_f}")
+        print(f"Closing the JSON file {json_file}")
         json_f.close()
         dumper.close_root()
         print(f"Wrote file {xml_file}")
@@ -290,13 +289,15 @@ def parse_args():
         '--coco', metavar='FILE', required=True,
         help='FILE for output annotations in JSON format'
     )
+    parser.add_argument("--withBodyKeyPoints", default=False, action="store_true",
+                    help="Flag to use body key points")
+
     return parser.parse_args()
 
 
 def main():
-    withBodyKeyPoints = True
     args = parse_args()
-    convert(args.coco, args.cvat_xml, withBodyKeyPoints)
+    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints)
 
 
 if __name__ == '__main__':
