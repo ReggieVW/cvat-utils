@@ -148,7 +148,7 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(json_file, xml_file, withBodyKeyPoints):
+def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
     """
     Transforms COCO json to an XML in CVAT format.
     """
@@ -175,6 +175,7 @@ def convert(json_file, xml_file, withBodyKeyPoints):
         # Loop through json_data according to track_id (ID remains constant for that person/object in all the sequences)
         for track_id_to_convert in track_ids_to_convert:
             max_frame_id = 0
+            min_frame_id = 999999
             for data in json_data["annotations"]:
                 track_id = data["track_id"]
                 frame_id = data["frame_id"]
@@ -184,6 +185,9 @@ def convert(json_file, xml_file, withBodyKeyPoints):
                 # set max frame_id
                 if frame_id > max_frame_id:
                     max_frame_id = frame_id
+                # set min frame_id
+                if frame_id < min_frame_id:
+                    min_frame_id = frame_id
 
             track = {
                 'id': str(xml_track_id),
@@ -202,27 +206,33 @@ def convert(json_file, xml_file, withBodyKeyPoints):
                 if track_id_to_convert != track_id:
                     continue
                 box = data["bbox"]
-                for a, b, c, d in fourwise(box[:4]):
-                    shape = OrderedDict()
-                    shape.update(OrderedDict([
-                        ("xtl", "{:.2f}".format(a)),
-                        ("ytl", "{:.2f}".format(b)),
-                        ("xbr", "{:.2f}".format(c)),
-                        ("ybr", "{:.2f}".format(d))
-                    ]))
-                    frame_no = data["frame_id"]
-                    shape["frame"] = str(frame_no)
-                    shape["keyframe"] = str(0)
-                    shape["outside"] = str(0)
-                    shape["occluded"] = str(0)
-                    shape["z_order"] = str(0)
-                    # if frame_no % x ==0: -> keyframe every x frames (use interpolation in between)
-                    shape["keyframe"] = str(1)
-                    if frame_no == max_frame_id:
-                        shape["outside"] = str(1)
-                    dumper.open_box(shape)
-                    dumper.close_box()
+                shape = OrderedDict()
+                shape.update(OrderedDict([
+                    ("xtl", "{:.2f}".format(box[0])),
+                    ("ytl", "{:.2f}".format(box[1])),
+                    ("xbr", "{:.2f}".format(box[2])),
+                    ("ybr", "{:.2f}".format(box[3]))
+                ]))
+                frame_no = data["frame_id"]
+                shape["frame"] = str(frame_no)
+                shape["keyframe"] = str(0)
+                shape["outside"] = str(0)
+                shape["occluded"] = str(0)
+                shape["z_order"] = str(0)
+                # if frame_no % x ==0: -> keyframe every x frames (use interpolation in between)
+                shape["keyframe"] = str(1)
+                if frame_no == max_frame_id:
+                    shape["outside"] = str(1)
+                dumper.open_box(shape)
+                dumper.add_attribute(OrderedDict([("name", "track_id"),("value", str(track_id))]))
+                dumper.close_box()
             dumper.close_track()
+
+
+            # Add 1 to track for next object to convert
+            if(withDummyAction):
+                xml_track_id += 1
+                create_dummy_object_func(dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id)
 
             # Convert body key points to XML
             if(withBodyKeyPoints):
@@ -246,28 +256,27 @@ def convert(json_file, xml_file, withBodyKeyPoints):
                             continue
                         frame_no = data["frame_id"]
                         xml_point_idx = 0
-                        for keypoint in data["keypoints"]:
-                            # x and y indicate pixel positions in the image. z indicates conficence
-                            for x, y, z in threewise(keypoint):
-                                # if point idx different => not the bodypart to convert in this loop
-                                if xml_point_idx != bodykey_idx:
-                                    continue
-                                shape = OrderedDict()
-                                shape["frame"] = str(frame_no)
+                        # x and y indicate pixel positions in the image. z indicates conficence
+                        for x, y, z in threewise(data["keypoints"]):
+                            # if point idx different => not the bodypart to convert in this loop
+                            if xml_point_idx != bodykey_idx:
+                                continue
+                            shape = OrderedDict()
+                            shape["frame"] = str(frame_no)
+                            shape["outside"] = str(0)
+                            shape["keyframe"] = str(1)
+                            # if last point from sequence or confidence under threshold, put outside = 1
+                            if frame_no == max_frame_id or z < 0.4:
+                                shape["outside"] = str(1)
+                            else:
                                 shape["outside"] = str(0)
-                                shape["keyframe"] = str(1)
-                                # if last point from sequence or confidence under threshold, put outside = 1
-                                if frame_no == max_frame_id or z < 0.4:
-                                    shape["outside"] = str(1)
-                                else:
-                                    shape["outside"] = str(0)
-                                shape["occluded"] = str(0)
-                                shape["z_order"] = str(0)
-                                shape.update(
-                                    {"points": '{:.2f},{:.2f}'.format(x, y)})
-                                dumper.open_points(shape)
-                                dumper.close_points()
-                            xml_point_idx += 1
+                            shape["occluded"] = str(0)
+                            shape["z_order"] = str(0)
+                            shape.update(
+                                {"points": '{:.2f},{:.2f}'.format(x, y)})
+                            dumper.open_points(shape)
+                            dumper.close_points()
+                        xml_point_idx += 1
                     dumper.close_track()
                     bodykey_idx += 1
         # Closing file
@@ -275,6 +284,37 @@ def convert(json_file, xml_file, withBodyKeyPoints):
         json_f.close()
         dumper.close_root()
         print(f"Wrote file {xml_file}")
+
+def create_dummy_object_func(dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id):
+    dummy_track = {
+        'id': str(xml_track_id),
+        'label': 'action',
+        'group_id': str(track_id_to_convert)
+    }
+    dumper.open_track(dummy_track)
+    # Convert bounding box to XML
+    for data in json_data["annotations"]:
+        track_id = data["track_id"]
+        frame_no = data["frame_id"]
+        # if track ID different => not the person/object to convert in this loop
+        if track_id_to_convert != track_id:
+            continue
+        # if track ID different => not the person/object to convert in this loop
+        shape = OrderedDict()
+        shape.update(OrderedDict([("points", "0.00,0.00")]))
+        shape["frame"] = str(frame_no)
+        shape["keyframe"] = str(0)
+        shape["outside"] = str(0)
+        shape["occluded"] = str(0)
+        shape["z_order"] = str(0)
+        if frame_no == max_frame_id:
+            shape["outside"] = str(1)
+        if frame_no == min_frame_id:
+            shape["keyframe"] = str(1)
+        dumper.open_points(shape)
+        dumper.add_attribute(OrderedDict([("name", "track_id"),("value", str(track_id_to_convert))]))
+        dumper.close_points()
+    dumper.close_track()
 
 def parse_args():
     """Parse arguments of command line"""
@@ -292,12 +332,15 @@ def parse_args():
     parser.add_argument("--withBodyKeyPoints", default=False, action="store_true",
                     help="Flag to use body key points")
 
+    parser.add_argument("--withDummyAction", default=False, action="store_true",
+                    help="Flag to create dummy action")
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints)
+    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints, args.withDummyAction)
 
 
 if __name__ == '__main__':
