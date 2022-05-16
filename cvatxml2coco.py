@@ -5,6 +5,7 @@ Convert from CVAT XML to COCO JSON
 import xml.etree.ElementTree as ET
 import json
 import argparse
+import sys
 
 from datetime import datetime, date
 from pathlib import Path
@@ -70,7 +71,7 @@ def convert(xmlfile, img_root, jsonfile):
         "images": [],
     }
 
-    # bodykeypoint names
+    # bodykeypoint labels19
     key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow",
                        "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
@@ -123,7 +124,7 @@ def convert(xmlfile, img_root, jsonfile):
             if xml_person_id not in xml_person_ids:
                 xml_person_ids.append(xml_person_id)
 
-    # No groups are set (in case of only person bboxes in XML), use track ID XML
+    # If n o groups are set (in case of only person bboxes in XML), use track ID XML
     if len(xml_person_ids) == 0:
         for track_elem in root.findall("track"):
             if ('id' in track_elem.attrib):
@@ -132,9 +133,11 @@ def convert(xmlfile, img_root, jsonfile):
                 if label == "person":
                     xml_person_ids.append(xml_person_id)
 
+    if len(xml_person_ids) > 500:   
+        sys.exit("Too much tracks to process, %s!" % len(xml_person_ids)) 
+         
     # Loop through XML according to ID (ID indicates shapes belonging to a specific unique person)
     print("Loop through XML according to ID")
-    print(xml_person_ids)
     for xml_person_id in xml_person_ids:
         for frame_index in range(start_frame, stop_frame):
             key_points = []
@@ -161,7 +164,6 @@ def convert(xmlfile, img_root, jsonfile):
                             visibil = 1
                         else:
                             visibil = 2
-
                         # [x1,y1,v1,x2,y2,v2...], → x and y indicate pixel positions in the image
                         points = point_elem.attrib["points"]
                         pos_arr = points.split(',')
@@ -172,6 +174,7 @@ def convert(xmlfile, img_root, jsonfile):
                         key_points.extend(key_point)
                         prev_pos = pos_arr
                         is_point_available = True
+                # if no point from xml make dummy key points from prev points and set visibility on 0
                 if not is_point_available and len(prev_pos) > 0:
                     key_point = []
                     for pos in prev_pos:
@@ -234,7 +237,7 @@ def convert(xmlfile, img_root, jsonfile):
                         "activity": actions
                     }
                     this_annot_id += 1
-                    print(f"Added annotation id {this_annot_id}")
+                    print("Added annotation for  ID %s", {this_annot_id})
                     coco_dict["annotations"].append(annot_dict)
     write_json(out_json, coco_dict)
 
