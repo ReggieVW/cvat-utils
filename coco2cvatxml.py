@@ -315,8 +315,8 @@ def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
     shape.update(OrderedDict([
                     ("xtl", "{:.2f}".format(box[0])),
                     ("ytl", "{:.2f}".format(box[1])),
-                    ("xbr", "{:.2f}".format(box[2])),
-                    ("ybr", "{:.2f}".format(box[3]))
+                    ("xbr", "{:.2f}".format(box[0]+box[2])),
+                    ("ybr", "{:.2f}".format(box[1]+box[3]))
                 ]))
     shape["frame"] = str(frame_no)
     shape["keyframe"] = str(0)
