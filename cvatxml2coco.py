@@ -87,7 +87,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
     labels = meta.find("task").find("labels")
     for label in labels.findall("label"):
         label_name = label.find("name").text
-        if label_name == "person ":
+        if label_name == "person":
             continue
         if label_name in key_body_labels:
             continue
@@ -148,8 +148,10 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
         for track_elem in root.findall("track"):
             if label_name != "person":
                 continue
-            if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != xml_person_id:
+            if ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                 continue
+            if ('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id:
+                 continue
             for box_elem in track_elem.findall("box"):
                 frame_index = int(box_elem.attrib["frame"])
                 if frame_index < xml_person_start_frame:
@@ -204,14 +206,14 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
             # Convert bbox person
             for track_elem in root.findall("track"):
                 # group ID different => not the person to convert in this loop
-                if (not withBodyKeyPoints and not withDummyActions and int(track_elem.attrib["id"]) != xml_person_id):
+                #if (not withBodyKeyPoints and not withDummyActions and int(track_elem.attrib["id"]) != xml_person_id):
+                #    continue
+                #if ((withBodyKeyPoints or withDummyActions) and ("group_id" not in track_elem.attrib or  int(track_elem.attrib["group_id"]) != xml_person_id)):
+                #    continue
+                if (('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id):
                     continue
-                if ((withBodyKeyPoints or withDummyActions) and ("group_id" not in track_elem.attrib or  int(track_elem.attrib["group_id"]) != xml_person_id)):
+                if (('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id):
                     continue
-                # if (('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id):
-                #     continue
-                # if (('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id):
-                #     continue
                 for box_elem in track_elem.findall("box"):
                     label_elem = track_elem.attrib["label"]
                     label_name = str(label_elem)
