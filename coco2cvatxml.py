@@ -254,9 +254,9 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                 #actions = ['Daily Actions', 'Medical Conditions', 'Mutual Actions / Two Person Interactions']
                 actions = ['Actions']
                 for action in actions:
+                    create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
                     # Add 1 to track for next object to convert
                     xml_track_id += 1
-                    create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
 
             # Convert body key points to XML
             if(withBodyKeyPoints):
