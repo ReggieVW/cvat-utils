@@ -48,7 +48,7 @@ python cvatxml2coco.py --cvat-xml annotations.xml --coco out.json --image-dir \i
 
 ## key points person
 There are 17 key points.
-![image](https://user-images.githubusercontent.com/35894891/165474348-1b7f7082-37db-4ff9-8cf8-0b5d3130565a.png)
+
 
 ## COCO JSON
 The annotation json file is in the format of MSCOCO dataset and is a collection of “info”, “images”, “annotations”, “categories”. There is one annotation file for one video which contains the annotations from the frames in the video. 
@@ -80,7 +80,10 @@ annotations:[{
   "id": 1,
   "name": "person",
   "keypoints": ["nose","head_bottom","head_top","left_ear","right_ear","left_shoulder","right_shoulder","left_elbow","right_elbow","left_wrist","right_wrist","left_hip","right_hip","left_knee","right_knee","left_ankle","right_ankle"], 
-  "skeleton": [16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13],[6,7],[6,8],[7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7], → defines connectivity  via a list of keypoint edge pairs
+  "skeleton" = [[15, 13], [13, 11], [16, 14], [14, 12], [11, 12],
+                        [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9],
+                        [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
+                        [3, 5], [4, 6]]→ defines connectivity
   "actions":["stand up"],["sit down"],["falling down"],["punch/slap other person"],["kicking other person"],["pushing other person"],...
 }]
 ```
