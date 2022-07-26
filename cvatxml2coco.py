@@ -66,22 +66,28 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
     # A collection of “info”, “images”, “annotations”, “categories”
     coco_dict = {
         "info": {"description": taskname, "data_created": date_str},
-        "annotations": [],
         "categories": [],
-        "images": [],
+        "annotations": [],
+        #"images": [],
     }
 
     # bodykeypoint labels19
-    key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow",
-                       "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
-
+    #key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow",
+     #                  "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
+    key_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
+    face_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear"]
     # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
     # Category ID 1 is for Human.
     cat_dict_person = {"id": 1, "name": "person",
                        "keypoints": key_body_labels,
-                       "skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12], [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3], [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]],
+                       "skeleton": [[15, 13], [13, 11], [16, 14], [14, 12], [11, 12],
+                        [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9],
+                        [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
+                        [3, 5], [4, 6]],
                        "supercategory": "person"}
+                       
     coco_dict["categories"].append(cat_dict_person)
+
     cat_name2id = {}
     this_cat_id = 2
     labels = meta.find("task").find("labels")
@@ -94,7 +100,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
         cat_name2id[label_name] = this_cat_id
         cat_dict = {"id": this_cat_id, "name": label_name, "supercategory": ""}
         this_cat_id += 1
-        coco_dict["categories"].append(cat_dict)
+        #coco_dict["categories"].append(cat_dict)
 
     # Add image info to JSON file
     # The “images” section contains the complete list of images in the dataset.
@@ -119,7 +125,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
     this_annot_id = 1
 
     # All shapes (points, bboxes) from one person belong to one group
-    xml_person_ids = []
+    xml_person_ids = [0]
     if withBodyKeyPoints or withDummyActions:
         for track_elem in root.findall("track"):
             if ('group_id' in track_elem.attrib):
@@ -146,7 +152,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
         xml_person_start_frame = stop_frame
         xml_person_stop_frame = 0
         for track_elem in root.findall("track"):
-            if label_name != "person":
+            if track_elem.attrib["label"] != "person":
                 continue
             if ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                 continue
@@ -159,7 +165,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                 if frame_index > xml_person_stop_frame:
                     xml_person_stop_frame = frame_index
         print("Person track %s for start frame %s to end frame %s" % (xml_person_id, xml_person_start_frame, xml_person_stop_frame))
-        for frame_index in range(xml_person_start_frame, xml_person_stop_frame):
+        for frame_index in range(xml_person_start_frame, xml_person_stop_frame+1):
             key_points = []
             if withBodyKeyPoints:
                 prev_pos = []
@@ -168,7 +174,9 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     is_point_available = False
                     for track_elem in root.findall("track"):
                         # if group ID different => not the person to convert in this loop
-                        if (not ('group_id' in track_elem.attrib)) or int(track_elem.attrib["group_id"]) != xml_person_id:
+                        if ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
+                            continue
+                        if (not ('group_id' in track_elem.attrib)) and 0 != xml_person_id:
                             continue
                         # if body label different => not the body part to convert in this loop
                         if key_body_labels[body_label_idx] != track_elem.attrib["label"]:
@@ -184,13 +192,19 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                             elif bool(int(point_elem.attrib["occluded"])):
                                 visibil = 1
                             else:
-                                visibil = 2
+                                if track_elem.attrib["label"] in face_body_labels:
+                                    visibil = 1
+                                else:
+                                    visibil = 2
                             # [x1,y1,v1,x2,y2,v2...], → x and y indicate pixel positions in the image
                             points = point_elem.attrib["points"]
                             pos_arr = points.split(',')
                             key_point = []
                             for pos in pos_arr:
-                                key_point.append(float(pos))
+                                if visibil == 0:   
+                                    key_point.append(float(0))
+                                else:
+                                    key_point.append(float(pos))
                             key_point.append(visibil)
                             key_points.extend(key_point)
                             prev_pos = pos_arr
@@ -225,7 +239,6 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     if bool(int(box_elem.attrib["outside"])):
                         continue
                     frame_idx = int(box_elem.attrib["frame"])
-
                     if img_root is not None:
                         imgid = img_idx2id[frame_idx - start_frame]
                     else:
@@ -266,18 +279,18 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                                 actions.append(attr_elem.attrib["name"])
                     annot_dict = {
                         "id": this_annot_id,
-                        "image_id": imgid,
+                        #"image_id": imgid,
                         "frame_id": frame_idx,
                         "category_id": 1,
                         "keypoints": key_points,
                         #"bbox": [x, y, r, b],
-                        "bbox": [x, y, w, h],
+                        "bbox": [x, y, round(w, 2), round(h, 2)],
                         # "area": w * h,
                         # Is not a crowd (meaning it’s a single object)
                         # "iscrowd": 0,
                         "track_id": xml_person_id,
-                        "occluded": occluded,
-                        "keyframe": keyframe,
+                        #"occluded": occluded,
+                        #"keyframe": keyframe,
                         "activity": actions
                     }
                     this_annot_id += 1
@@ -297,6 +310,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
             convert_other_bboxes(img_root, start_frame, coco_dict, img_idx2id, this_annot_id, track_elem, coco_track_id, frame_index, cat_name2id)
         used_track_ids.append(coco_track_id)
         this_annot_id += 1
+
     write_json(out_json, coco_dict)
 
 def convert_other_bboxes(img_root, start_frame, coco_dict, img_idx2id, this_annot_id, track_elem, track_id, frame_index, cat_name2id):
@@ -332,7 +346,7 @@ def convert_other_bboxes(img_root, start_frame, coco_dict, img_idx2id, this_anno
             "frame_id": frame_idx,
             "category_id": cat_name2id[label_name],
             #"bbox": [x, y, r, b],
-            "bbox": [x, y, w, h],
+            "bbox": [x, y, round(w, 2), round(h, 2)],
             # "area": w * h,
             # Is not a crowd (meaning it’s a single object)
             # "iscrowd": 0,

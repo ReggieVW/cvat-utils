@@ -154,8 +154,7 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
     Transforms COCO json to an XML in CVAT format.
     """
     # bodykeypoint names
-    body_key_labels = ["nose", "", "", "", "", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
-                       "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
+    body_key_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
 
     # Write the xml file
     with open(xml_file, 'w') as f:
@@ -263,8 +262,8 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                 # Iterate over all body parts
                 for bodykey_idx in range(len(body_key_labels)):
                     # Don't convert pointkey from the face
-                    if (bodykey_idx > 0 and bodykey_idx < 5):
-                        continue
+                    #if (bodykey_idx > 0 and bodykey_idx < 5):
+                    #    continue
                     # Create a track for each key point in the XML
                     track = {
                         'id': str(xml_track_id),
@@ -290,12 +289,16 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                                 shape["frame"] = str(frame_no)
                                 shape["outside"] = str(0)
                                 shape["keyframe"] = str(1)
-                                # if last point from sequence or confidence under threshold, put outside = 1
-                                if frame_no == max_frame_id or z < 0.4:
+                                # if last point from sequence 
+                                if frame_no == max_frame_id and last_frame_id != max_frame_id:
                                     shape["outside"] = str(1)
                                 else:
                                     shape["outside"] = str(0)
-                                shape["occluded"] = str(0)
+                                #confidence under threshold, put occluded = 1
+                                if z < 0.2:
+                                     shape["occluded"] = str(1)
+                                else:
+                                    shape["occluded"] = str(0)                                   
                                 shape["z_order"] = str(0)
                                 shape.update(
                                     {"points": '{:.2f},{:.2f}'.format(x, y)})
