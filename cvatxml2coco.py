@@ -10,7 +10,6 @@ import sys
 from datetime import datetime, date
 from pathlib import Path
 from PIL import Image
-from cocojson.utils.common import path, get_imgs_from_dir
 
 
 def write_json(json_path, dic):
@@ -18,8 +17,10 @@ def write_json(json_path, dic):
         json.dump(dic, f, indent=2)
     print(f"Wrote json to {json_path}")
 
-
-def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
+def convert(xmlfile, img_root, jsonfile, onlyBoxes, withBodyKeyPoints, withDummyActions):
+    if not withBodyKeyPoints and not onlyBoxes:
+        print('--withBodyKeyPoints or --onlyBoxes is not set, one of those argument must be set ')
+        exit(0)
     """
     Transforms an XML in CVAT format to COCO.
     """
@@ -30,12 +31,22 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
 
     # META info
     meta = root.find("meta")
-    task = meta.find("task")
-    taskname = task.find("name")
-    if taskname is None:
-        taskname = ""
+    if meta is None:
+        taskname = "project"
+        date_str = f"{date.today():%Y/%m/%d}"
+        start_frame = 0
+        stop_frame = 0
     else:
+        task = meta.find("task")
+        taskname = task.find("name")
         taskname = taskname.text
+        dumped = meta.find("dumped")
+        date_dt = datetime.strptime(dumped.text.split()[0], "%Y-%m-%d").date()
+        date_str = f"{date_dt:%Y/%m/%d}"
+        start_frame = task.find("start_frame")
+        start_frame = int(start_frame.text)
+        stop_frame = task.find("stop_frame")
+        stop_frame = int(stop_frame.text)
 
     if jsonfile:
         out_json = jsonfile
@@ -43,37 +54,14 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
         json_file_name = taskname if taskname else Path(xmlfile).stem
         out_json = f"{json_file_name}.json"
 
-    dumped = meta.find("dumped")
-    if dumped is None:
-        date_str = f"{date.today():%Y/%m/%d}"
-    else:
-        date_dt = datetime.strptime(dumped.text.split()[0], "%Y-%m-%d").date()
-        date_str = f"{date_dt:%Y/%m/%d}"
-
-    start_frame = task.find("start_frame")
-    if start_frame is None:
-        start_frame = 0
-    else:
-        start_frame = int(start_frame.text)
-    assert start_frame >= 0
-
-    stop_frame = task.find("stop_frame")
-    if stop_frame is None:
-        stop_frame = 0
-    else:
-        stop_frame = int(stop_frame.text)
-
     # A collection of “info”, “images”, “annotations”, “categories”
     coco_dict = {
         "info": {"description": taskname, "data_created": date_str},
         "categories": [],
         "annotations": [],
-        #"images": [],
     }
 
     # bodykeypoint labels19
-    #key_body_labels = ["nose", "head_bottom", "head_top", "left_ear", "right_ear", "left_shoulder", "right_shoulder",  "left_elbow",
-     #                  "right_elbow",  "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]
     key_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
     face_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear"]
     # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
@@ -85,7 +73,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                         [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
                         [3, 5], [4, 6]],
                        "supercategory": "person"}
-                       
+
     coco_dict["categories"].append(cat_dict_person)
 
     cat_name2id = {}
@@ -123,18 +111,23 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
             coco_dict["images"].append(img_dict)
 
     this_annot_id = 1
-
     # All shapes (points, bboxes) from one person belong to one group
     xml_person_ids = [0]
+
+    isGroupAvailable = False
     if withBodyKeyPoints or withDummyActions:
         for track_elem in root.findall("track"):
             if ('group_id' in track_elem.attrib):
                 xml_person_id = int(track_elem.attrib["group_id"])
+                isGroupAvailable = True
                 if xml_person_id not in xml_person_ids:
                     xml_person_ids.append(xml_person_id)
+    if withBodyKeyPoints and not isGroupAvailable:
+        sys.exit("No group_id found, use onlyBoxes param!")
 
     # If no groups are set (in case of only person bboxes in XML), use track ID XML
-    if len(xml_person_ids) == 0:
+    if onlyBoxes:
+        xml_person_ids = []
         for track_elem in root.findall("track"):
             if ('id' in track_elem.attrib):
                 xml_person_id = int(track_elem.attrib["id"])
@@ -143,9 +136,9 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     xml_person_ids.append(xml_person_id)
 
     print("Person tracks to process, %s" % len(xml_person_ids))
-    if len(xml_person_ids) > 500:   
-        sys.exit("Too much person tracks to process, %s!" % len(xml_person_ids)) 
-         
+    if len(xml_person_ids) > 500:
+        sys.exit("Too much person tracks to process, %s!" % len(xml_person_ids))
+
     # Loop through XML according to ID (ID indicates shapes belonging to a specific unique person)
     print("Loop through XML according to ID")
     for xml_person_id in xml_person_ids:
@@ -154,9 +147,9 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
         for track_elem in root.findall("track"):
             if track_elem.attrib["label"] != "person":
                 continue
-            if ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
+            if withBodyKeyPoints and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                 continue
-            if ('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id:
+            if onlyBoxes and int(track_elem.attrib["id"]) != xml_person_id:
                  continue
             for box_elem in track_elem.findall("box"):
                 frame_index = int(box_elem.attrib["frame"])
@@ -164,6 +157,9 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     xml_person_start_frame = frame_index
                 if frame_index > xml_person_stop_frame:
                     xml_person_stop_frame = frame_index
+        if xml_person_stop_frame == 0:
+            continue
+
         print("Person track %s for start frame %s to end frame %s" % (xml_person_id, xml_person_start_frame, xml_person_stop_frame))
         for frame_index in range(xml_person_start_frame, xml_person_stop_frame+1):
             key_points = []
@@ -178,7 +174,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                             continue
                         if (not ('group_id' in track_elem.attrib)) and 0 != xml_person_id:
                             continue
-                        # if body label different => not the body part to convert in this loop
+                        # if body label different => no t the body part to convert in this loop
                         if key_body_labels[body_label_idx] != track_elem.attrib["label"]:
                             continue
                         for point_elem in track_elem.findall("points"):
@@ -201,7 +197,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                             pos_arr = points.split(',')
                             key_point = []
                             for pos in pos_arr:
-                                if visibil == 0:   
+                                if visibil == 0:
                                     key_point.append(float(0))
                                 else:
                                     key_point.append(float(pos))
@@ -209,24 +205,26 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                             key_points.extend(key_point)
                             prev_pos = pos_arr
                             is_point_available = True
-                    # if no point from xml make dummy key points from prev points and set visibility on 0
-                    if not is_point_available and len(prev_pos) > 0:
+                    # if no point from xml
+                    if not is_point_available:
                         key_point = []
-                        for pos in prev_pos:
-                            key_point.append(float(pos))
+                        key_point.append(float(0))
+                        key_point.append(float(0))
                         key_point.append(0)
                         key_points.extend(key_point)
+                        is_point_available = True
+
+            if(withBodyKeyPoints and len(key_points) < 51):
+                print("Error length keypoints %s" %len(key_points))
 
             # Convert bbox person
             for track_elem in root.findall("track"):
                 # group ID different => not the person to convert in this loop
-                #if (not withBodyKeyPoints and not withDummyActions and int(track_elem.attrib["id"]) != xml_person_id):
-                #    continue
-                #if ((withBodyKeyPoints or withDummyActions) and ("group_id" not in track_elem.attrib or  int(track_elem.attrib["group_id"]) != xml_person_id)):
-                #    continue
-                if (('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id):
+                if withBodyKeyPoints and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                     continue
-                if (('group_id' not in track_elem.attrib) and int(track_elem.attrib["id"]) != xml_person_id):
+                if withBodyKeyPoints and not ('group_id' in track_elem.attrib) and 0 != xml_person_id:
+                    continue
+                if onlyBoxes and  int(track_elem.attrib["id"]) != xml_person_id:
                     continue
                 for box_elem in track_elem.findall("box"):
                     label_elem = track_elem.attrib["label"]
@@ -244,7 +242,7 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     else:
                         imgid = 0
 
-                    occluded = bool(int(box_elem.attrib["occluded"]))
+                    occluded = int(box_elem.attrib["occluded"])
                     keyframe = bool(int(box_elem.attrib["keyframe"]))
                     # [x,y,width,height], → Denoting the bbox location of that person. Box coordinates are measured from the top left image corner and are 0-indexed<br />
                     x = float(box_elem.attrib["xtl"])
@@ -254,7 +252,6 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                     w = r - x
                     h = b - y
                     # The person's actions which are captured
-                    #actionsList = ['Daily Actions','Mutual Actions / Two Person Interactions','']
                     actions = []
                     if withDummyActions:
                         for track_elem2 in root.findall("track"):
@@ -268,10 +265,6 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                                 for attr_elem in points_elem.findall("attribute"):
                                     if attr_elem.text is not None and str(attr_elem.text.lower()) == "true":
                                         text = attr_elem.attrib["name"]
-                                        if text == "hit with object":
-                                            text = "hit other person with something"
-                                        if text == "grab other person\u2019s stuff":
-                                            text = "grab other person's stuff"
                                         actions.append(text)
                     else:
                         for attr_elem in box_elem.findall("attribute"):
@@ -279,18 +272,12 @@ def convert(xmlfile, img_root, jsonfile, withBodyKeyPoints, withDummyActions):
                                 actions.append(attr_elem.attrib["name"])
                     annot_dict = {
                         "id": this_annot_id,
-                        #"image_id": imgid,
                         "frame_id": frame_idx,
                         "category_id": 1,
                         "keypoints": key_points,
-                        #"bbox": [x, y, r, b],
-                        "bbox": [x, y, round(w, 2), round(h, 2)],
-                        # "area": w * h,
-                        # Is not a crowd (meaning it’s a single object)
-                        # "iscrowd": 0,
+                        "bbox": [x, y, round(w, 3), round(h, 3)],
                         "track_id": xml_person_id,
-                        #"occluded": occluded,
-                        #"keyframe": keyframe,
+                        "occluded": occluded,
                         "activity": actions
                     }
                     this_annot_id += 1
@@ -329,7 +316,7 @@ def convert_other_bboxes(img_root, start_frame, coco_dict, img_idx2id, this_anno
         if img_root is not None:
             imgid = img_idx2id[frame_idx - start_frame]
         else:
-            imgid = 0 
+            imgid = 0
 
         occluded = bool(int(box_elem.attrib["occluded"]))
         keyframe = bool(int(box_elem.attrib["keyframe"]))
@@ -345,18 +332,12 @@ def convert_other_bboxes(img_root, start_frame, coco_dict, img_idx2id, this_anno
             "image_id": imgid,
             "frame_id": frame_idx,
             "category_id": cat_name2id[label_name],
-            #"bbox": [x, y, r, b],
-            "bbox": [x, y, round(w, 2), round(h, 2)],
-            # "area": w * h,
-            # Is not a crowd (meaning it’s a single object)
-            # "iscrowd": 0,
+            "bbox": [x, y, round(w, 3), round(h, 3)],
             "track_id": track_id,
             "occluded": occluded,
             "keyframe": keyframe
         }
-        # print("Added annotation for  ID %s" % this_annot_id)
         coco_dict["annotations"].append(annot_dict)
-        #print("Processed, %s!, category %s" % (label_name, cat_name2id[label_name]))
 
 def parse_args():
     """Parse arguments of command line"""
@@ -378,16 +359,16 @@ def parse_args():
     parser.add_argument("--withBodyKeyPoints", default=False, action="store_true",
                     help="Flag to use body key points")
 
+    parser.add_argument("--onlyBoxes", default=False, action="store_true",
+                    help="Flag to use only body boxes")
+
     parser.add_argument("--withDummyActions", default=False, action="store_true",
                     help="Flag to use dummy actions to extract activity")
-
     return parser.parse_args()
-
 
 def main():
     args = parse_args()
-    convert(args.cvat_xml, args.image_dir, args.coco, args.withBodyKeyPoints, args.withDummyActions)
-
+    convert(args.cvat_xml, args.image_dir, args.coco, args.onlyBoxes, args.withBodyKeyPoints, args.withDummyActions)
 
 if __name__ == '__main__':
     main()
