@@ -2,14 +2,13 @@
 Convert from COCO JSON to CVAT XML
 """
 
-
-import json
 from pickle import FALSE
-import sys
-import argparse
-
 from collections import OrderedDict
 from xml.sax.saxutils import XMLGenerator
+
+import numpy as np
+import argparse
+import json
 
 
 class XmlAnnotationWriter:
@@ -138,24 +137,19 @@ class XmlAnnotationWriter:
         self.xmlgen.endElement("annotations")
         self.xmlgen.endDocument()
 
-
 def threewise(iterable):
     a = iter(iterable)
     return zip(a, a, a)
-
 
 def fourwise(iterable):
     a = iter(iterable)
     return zip(a, a, a, a)
 
 
-def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInFirstFrames):
+def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
     """
     Transforms COCO json to an XML in CVAT format.
     """
-    # bodykeypoint names
-    body_key_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
-
     # Write the xml file
     with open(xml_file, 'w') as f:
         dumper = XmlAnnotationWriter(f)
@@ -183,12 +177,13 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                 cat_name2id[this_cat_id] = label_name
 
         print("Categories, %s!" % cat_name2id)
-
+        print("track_ids_to_convert, %s!" % track_ids_to_convert)
+        
         xml_track_id = 0
         # Loop through json_data according to track_id (ID remains constant for that person/object in all the sequences)
         for track_id_to_convert in track_ids_to_convert:
             max_frame_id = 0
-            min_frame_id = 999999
+            min_frame_id = float('inf')
             for data in json_data["annotations"]:
                 track_id = data["track_id"]
                 frame_id = data["frame_id"]
@@ -201,6 +196,8 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                 # set min frame_id
                 if frame_id < min_frame_id:
                     min_frame_id = frame_id
+
+            print("track_id_to_convert %s , min_frame_id %s , max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
 
             category = ""
             for data in json_data["annotations"]:
@@ -215,7 +212,7 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
             track = {
                 'id': str(xml_track_id),
                 'label': category,
-                'group_id': str(track_id_to_convert)
+                'group_id': str(track_id_to_convert + 1)
             }
 
             dumper.open_track(track)
@@ -230,16 +227,7 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                     continue
                 box = data["bbox"]
                 frame_no = data["frame_id"]
-                if(withFillInFirstFrames and frame_no == 2):
-                    shape = createShapeBox(box, 0, last_frame_id, max_frame_id,)
-                    dumper.open_box(shape)
-                    dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(track_id))]))
-                    dumper.close_box()
-                    shape = createShapeBox(box, 1, last_frame_id, max_frame_id,)
-                    dumper.open_box(shape)
-                    dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(track_id))]))
-                    dumper.close_box()
-                shape = createShapeBox(box, frame_no, last_frame_id, max_frame_id,)
+                shape = createShapeBox(box, frame_no, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
                 if category == "person":
                     dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(track_id))]))
@@ -248,9 +236,7 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                 dumper.close_box()
             dumper.close_track()
 
-
             if(withDummyAction and category == "person"):
-                #actions = ['Daily Actions', 'Medical Conditions', 'Mutual Actions / Two Person Interactions']
                 actions = ['Actions']
                 for action in actions:
                     create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
@@ -258,17 +244,16 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                     xml_track_id += 1
 
             # Convert body key points to XML
-            if(withBodyKeyPoints):
+            if(category == "person" and withBodyKeyPoints):
+                # bodykeypoint names
+                body_key_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
                 # Iterate over all body parts
                 for bodykey_idx in range(len(body_key_labels)):
-                    # Don't convert pointkey from the face
-                    #if (bodykey_idx > 0 and bodykey_idx < 5):
-                    #    continue
                     # Create a track for each key point in the XML
                     track = {
                         'id': str(xml_track_id),
                         'label': body_key_labels[bodykey_idx],
-                        'group_id': str(track_id_to_convert)
+                        'group_id': str(track_id_to_convert + 1)
                     }
                     dumper.open_track(track)
                     # Add 1 to track for next object to convert
@@ -280,25 +265,24 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction, withFillInF
                         frame_no = data["frame_id"]
                         xml_point_idx = 0
                         # x and y indicate pixel positions in the image. z indicates conficence
-                        for keypoint in data["keypoints"]:
+                        arr_2d = np.reshape(data["keypoints"], (17, 3))
+                        for keypoint in arr_2d:
                             for x, y, z in threewise(keypoint):
                                 # if point idx different => not the bodypart to convert in this loop
                                 if xml_point_idx != bodykey_idx:
                                     continue
                                 shape = OrderedDict()
                                 shape["frame"] = str(frame_no)
-                                shape["outside"] = str(0)
                                 shape["keyframe"] = str(1)
+                                shape["occluded"] = str(0)   
                                 # if last point from sequence 
+                                shape["outside"] = str(0)
                                 if frame_no == max_frame_id and last_frame_id != max_frame_id:
                                     shape["outside"] = str(1)
-                                else:
-                                    shape["outside"] = str(0)
-                                #confidence under threshold, put occluded = 1
-                                if z < 0.2:
-                                     shape["occluded"] = str(1)
-                                else:
-                                    shape["occluded"] = str(0)                                   
+                                if z == 0:
+                                    shape["outside"] = str(1)
+                                if z == 1:
+                                    shape["occluded"] = str(1)                               
                                 shape["z_order"] = str(0)
                                 shape.update(
                                     {"points": '{:.2f},{:.2f}'.format(x, y)})
@@ -322,11 +306,9 @@ def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
                     ("ybr", "{:.2f}".format(box[1]+box[3]))
                 ]))
     shape["frame"] = str(frame_no)
-    shape["keyframe"] = str(0)
     shape["outside"] = str(0)
     shape["occluded"] = str(0)
     shape["z_order"] = str(0)
-                # if frame_no % x ==0: -> keyframe every x frames (use interpolation in between)
     shape["keyframe"] = str(1)
     if frame_no == max_frame_id and last_frame_id != max_frame_id:
         shape["outside"] = str(1)
@@ -336,7 +318,7 @@ def create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_t
     dummy_track = {
         'id': str(xml_track_id),
         'label': action,
-        'group_id': str(track_id_to_convert)
+        'group_id': str(track_id_to_convert + 1)
     }
     dumper.open_track(dummy_track)
     # Convert bounding box to XML
@@ -362,9 +344,6 @@ def create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_t
             shape["keyframe"] = str(1)
         dumper.open_points(shape)
         dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(track_id_to_convert))]))
-        dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", "")]))
-        if action == 'Mutual Actions / Two Person Interactions':
-            dumper.add_attribute(OrderedDict([("name", "target_person_track_id"),("value", "")]))
         dumper.close_points()
     dumper.close_track()
 
@@ -387,15 +366,12 @@ def parse_args():
     parser.add_argument("--withDummyAction", default=False, action="store_true",
                     help="Flag to create dummy action")
 
-    parser.add_argument("--withFillInFirstFrames", default=False, action="store_true",
-                    help="Flag to create dummy action")
-
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints, args.withDummyAction, args.withFillInFirstFrames)
+    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints, args.withDummyAction)
 
 
 if __name__ == '__main__':
