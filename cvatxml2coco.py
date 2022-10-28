@@ -1,6 +1,6 @@
 """
 @Author Reginald Van Woensel
-Convert from CVAT XML to COCO JSON
+Convert person skeletons from CVAT XML to COCO JSON
 """
 
 import xml.etree.ElementTree as ET
@@ -149,7 +149,7 @@ def convert(xmlfile, jsonfile, onlyBoxes, withBodyKeyPoints, addDummyActions):
                 # group ID different => not the person to convert in this loop
                 if withBodyKeyPoints and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                     continue
-                # in the extracted XML for the first person the group_id could be empty
+                # in the extracted XML for the first person the group_id could be empty but has to be zero
                 if withBodyKeyPoints and not ('group_id' in track_elem.attrib) and 0 != xml_person_id:
                     continue
                 # when the xml contains only boxes no group ids are provided
@@ -230,7 +230,7 @@ def convertBodyKeyPoints(root, key_body_labels, face_body_labels, xml_person_id,
     for body_label_idx in range(len(key_body_labels)):
         is_point_available = False
         for track_elem in root.findall("track"):
-                        # if group ID different => not the person to convert in this loop
+            # if group ID different => not the person to convert in this loop
             if ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
                 continue
             if (not ('group_id' in track_elem.attrib)) and 0 != xml_person_id:

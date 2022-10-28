@@ -1,5 +1,6 @@
 """
-Convert from COCO JSON to CVAT XML
+@Author Reginald Van Woensel
+Convert person skeletons from COCO JSON to CVAT XML
 """
 
 from pickle import FALSE
@@ -147,9 +148,7 @@ def fourwise(iterable):
 
 
 def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
-    """
-    Transforms COCO json to an XML in CVAT format.
-    """
+
     # Write the xml file
     with open(xml_file, 'w') as f:
         dumper = XmlAnnotationWriter(f)
@@ -196,7 +195,6 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
                 # set min frame_id
                 if frame_id < min_frame_id:
                     min_frame_id = frame_id
-
             print("track_id_to_convert %s , min_frame_id %s , max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
 
             category = ""
@@ -214,11 +212,9 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
                 'label': category,
                 'group_id': str(track_id_to_convert + 1)
             }
-
             dumper.open_track(track)
             # Add 1 to track for next object to convert
             xml_track_id += 1
-
             # Convert bounding box to XML
             for data in json_data["annotations"]:
                 track_id = data["track_id"]
@@ -235,14 +231,12 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
                     dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(track_id))]))
                 dumper.close_box()
             dumper.close_track()
-
             if(withDummyAction and category == "person"):
                 actions = ['Actions']
                 for action in actions:
                     create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
                     # Add 1 to track for next object to convert
                     xml_track_id += 1
-
             # Convert body key points to XML
             if(category == "person" and withBodyKeyPoints):
                 # bodykeypoint names
