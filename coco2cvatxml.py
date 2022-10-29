@@ -148,7 +148,6 @@ def fourwise(iterable):
 
 
 def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
-
     # Write the xml file
     with open(xml_file, 'w') as f:
         dumper = XmlAnnotationWriter(f)
@@ -181,20 +180,7 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
         xml_track_id = 0
         # Loop through json_data according to track_id (ID remains constant for that person/object in all the sequences)
         for track_id_to_convert in track_ids_to_convert:
-            max_frame_id = 0
-            min_frame_id = float('inf')
-            for data in json_data["annotations"]:
-                track_id = data["track_id"]
-                frame_id = data["frame_id"]
-                # if track ID different => not the person/object to convert in this loop
-                if track_id_to_convert != track_id:
-                    continue
-                # set max frame_id
-                if frame_id > max_frame_id:
-                    max_frame_id = frame_id
-                # set min frame_id
-                if frame_id < min_frame_id:
-                    min_frame_id = frame_id
+            min_frame_id, max_frame_id = retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert)
             print("track_id_to_convert %s , min_frame_id %s , max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
 
             category = ""
@@ -290,6 +276,23 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
         json_f.close()
         dumper.close_root()
         print(f"Wrote file {xml_file}")
+
+def retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
+    max_frame_id = 0
+    min_frame_id = float('inf')
+    for data in json_data["annotations"]:
+        track_id = data["track_id"]
+        frame_id = data["frame_id"]
+                # if track ID different => not the person/object to convert in this loop
+        if track_id_to_convert != track_id:
+            continue
+                # set max frame_id
+        if frame_id > max_frame_id:
+            max_frame_id = frame_id
+                # set min frame_id
+        if frame_id < min_frame_id:
+            min_frame_id = frame_id
+    return min_frame_id,max_frame_id
 
 def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
     shape = OrderedDict()

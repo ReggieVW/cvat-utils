@@ -6,7 +6,6 @@ Convert person skeletons from CVAT XML to COCO JSON
 import xml.etree.ElementTree as ET
 import json
 import argparse
-import sys
 
 from datetime import datetime, date
 from pathlib import Path
@@ -20,11 +19,14 @@ def write_json(json_path, dic):
         json.dump(dic, f, indent=2)
     print(f"Wrote json to {json_path}")
 
+
 def convert(xmlfile, jsonfile, onlyBoxes, withBodyKeyPoints, addDummyActions):
     if not withBodyKeyPoints and not onlyBoxes:
         print('--withBodyKeyPoints or --onlyBoxes is not set, one of those argument must be set ')
         exit(0)
-
+    if withBodyKeyPoints and onlyBoxes:
+        print('--withBodyKeyPoints and --onlyBoxes both are set, only one of those argument must be set ')
+        exit(0)
     # Parse XML
     print(f"Parse XML {xmlfile}")
     tree = ET.parse(xmlfile)
@@ -63,81 +65,16 @@ def convert(xmlfile, jsonfile, onlyBoxes, withBodyKeyPoints, addDummyActions):
         "licenses": [] #TODO check with geert@autimatic.be
     }
 
-    # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
-    # Category ID 1 is for Human.
-    cat_dict_person = {"id": 1, "name": "person",
-                       "keypoints": key_body_labels,
-                       "skeleton": [[15, 13], [13, 11], [16, 14], [14, 12], [11, 12],
-                        [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9],
-                        [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
-                        [3, 5], [4, 6]],
-                       "supercategory": "person"}
-    coco_dict["categories"].append(cat_dict_person)
-
-    cat_name2id = {}
-    # Other labels than person or keypoints
-    this_cat_id = 2
-    labels = meta.find("task").find("labels")
-    for label in labels.findall("label"):
-        label_name = label.find("name").text
-        if label_name == "person":
-            continue
-        if label_name in key_body_labels:
-            continue
-        cat_name2id[label_name] = this_cat_id
-        cat_dict = {"id": this_cat_id, "name": label_name, "supercategory": ""}
-        this_cat_id += 1
-        coco_dict["categories"].append(cat_dict)
-
+    cat_name2id = add_categories(meta, coco_dict)
     this_annot_id = 1
-    xml_person_ids = [0]
-    isGroupAvailable = False
-    if withBodyKeyPoints or addDummyActions:
-        for track_elem in root.findall("track"):
-            # All shapes (points, bboxes) from one person belong to one group
-            if ('group_id' in track_elem.attrib):
-                xml_person_id = int(track_elem.attrib["group_id"])
-                isGroupAvailable = True
-                if xml_person_id not in xml_person_ids:
-                    xml_person_ids.append(xml_person_id)
-    if withBodyKeyPoints and not isGroupAvailable:
-        sys.exit("No group_id found, use onlyBoxes param!")
-
-    # If no groups are set (in case of only person bboxes in XML), use track ID XML
-    if onlyBoxes:
-        xml_person_ids = []
-        for track_elem in root.findall("track"):
-            if ('id' in track_elem.attrib):
-                xml_person_id = int(track_elem.attrib["id"])
-                label = str(track_elem.attrib["label"])
-                if label == "person":
-                    xml_person_ids.append(xml_person_id)
-
-    print("Person tracks to process, %s" % len(xml_person_ids))
-    if len(xml_person_ids) > 999:
-        sys.exit("Too much person tracks to process, %s!" % len(xml_person_ids))
+    xml_person_ids = retrieve_person_ids(onlyBoxes, withBodyKeyPoints, addDummyActions, root)
 
     # Loop through XML according to person ID (ID indicates shapes belonging to a specific unique person)
     print("Loop through XML according to ID")
     for xml_person_id in xml_person_ids:
-        xml_person_start_frame = stop_frame
-        xml_person_stop_frame = 0
-        for track_elem in root.findall("track"):
-            if track_elem.attrib["label"] != "person":
-                continue
-            if withBodyKeyPoints and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
-                continue
-            if onlyBoxes and int(track_elem.attrib["id"]) != xml_person_id:
-                 continue
-            for box_elem in track_elem.findall("box"):
-                frame_index = int(box_elem.attrib["frame"])
-                if frame_index < xml_person_start_frame:
-                    xml_person_start_frame = frame_index
-                if frame_index > xml_person_stop_frame:
-                    xml_person_stop_frame = frame_index
+        xml_person_start_frame, xml_person_stop_frame = retrieve_start_and_stop_frame_per_person_id(onlyBoxes, withBodyKeyPoints, root, stop_frame, xml_person_id)
         if xml_person_stop_frame == 0:
             continue
-
         print("Person track %s for start frame %s to end frame %s" % (xml_person_id, xml_person_start_frame, xml_person_stop_frame))
         for frame_index in range(xml_person_start_frame, xml_person_stop_frame+1):
             key_points = []
@@ -205,6 +142,74 @@ def convert(xmlfile, jsonfile, onlyBoxes, withBodyKeyPoints, addDummyActions):
 
     write_json(out_json, coco_dict)
 
+def add_categories(meta, coco_dict):
+    # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
+    # Category ID 1 is for Human.
+    cat_dict_person = {"id": 1, "name": "person",
+                       "keypoints": key_body_labels,
+                       "skeleton": [[15, 13], [13, 11], [16, 14], [14, 12], [11, 12],
+                        [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9],
+                        [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
+                        [3, 5], [4, 6]],
+                       "supercategory": "person"}
+    coco_dict["categories"].append(cat_dict_person)
+
+    cat_name2id = {}
+    # Other categories than person 
+    this_cat_id = 2
+    labels = meta.find("task").find("labels")
+    for label in labels.findall("label"):
+        label_name = label.find("name").text
+        if label_name == "person":
+            continue
+        if label_name in key_body_labels:
+            continue
+        cat_name2id[label_name] = this_cat_id
+        cat_dict = {"id": this_cat_id, "name": label_name, "supercategory": ""}
+        this_cat_id += 1
+        coco_dict["categories"].append(cat_dict)
+    return cat_name2id
+
+def retrieve_person_ids(onlyBoxes, withBodyKeyPoints, addDummyActions, root):
+    if withBodyKeyPoints or addDummyActions:
+        # It could happen that the first person retrieved from the CVAT xml does not have a group_id. In that case ID = 0
+        xml_person_ids = [0]
+        for track_elem in root.findall("track"):
+            # All shapes (points, bboxes) from one person belong to one group. Add the group ID to the person ID list.
+            if ('group_id' in track_elem.attrib):
+                xml_person_id = int(track_elem.attrib["group_id"])
+                if xml_person_id not in xml_person_ids:
+                    xml_person_ids.append(xml_person_id)
+
+    # If no groups are set (in case of only person bboxes in XML), use track ID XML
+    if onlyBoxes:
+        xml_person_ids = []
+        for track_elem in root.findall("track"):
+            if ('id' in track_elem.attrib):
+                xml_person_id = int(track_elem.attrib["id"])
+                label = str(track_elem.attrib["label"])
+                if label == "person":
+                    xml_person_ids.append(xml_person_id)
+    return xml_person_ids
+
+def retrieve_start_and_stop_frame_per_person_id(onlyBoxes, withBodyKeyPoints, root, stop_frame, xml_person_id):
+    xml_person_start_frame = stop_frame
+    xml_person_stop_frame = 0
+    for track_elem in root.findall("track"):
+        if track_elem.attrib["label"] != "person":
+            continue
+        if withBodyKeyPoints and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != xml_person_id:
+            continue
+        if onlyBoxes and int(track_elem.attrib["id"]) != xml_person_id:
+             continue
+        for box_elem in track_elem.findall("box"):
+            frame_index = int(box_elem.attrib["frame"])
+            if frame_index < xml_person_start_frame:
+                xml_person_start_frame = frame_index
+            if frame_index > xml_person_stop_frame:
+                xml_person_stop_frame = frame_index
+    return xml_person_start_frame,xml_person_stop_frame
+
 def convertActions(addDummyActions, root, xml_person_id, box_elem, frame_index, actions):
     if addDummyActions:
         for track_elem2 in root.findall("track"):
@@ -225,7 +230,6 @@ def convertActions(addDummyActions, root, xml_person_id, box_elem, frame_index, 
                 actions.append(attr_elem.attrib["name"])
 
 def convertBodyKeyPoints(root, key_body_labels, face_body_labels, xml_person_id, frame_index, key_points):
-    #prev_pos = []
     # Iterate over all body parts
     for body_label_idx in range(len(key_body_labels)):
         is_point_available = False
@@ -235,7 +239,7 @@ def convertBodyKeyPoints(root, key_body_labels, face_body_labels, xml_person_id,
                 continue
             if (not ('group_id' in track_elem.attrib)) and 0 != xml_person_id:
                 continue
-            # if body label different => no t the body part to convert in this loop
+            # if body label different => not the body part to convert in this loop
             if key_body_labels[body_label_idx] != track_elem.attrib["label"]:
                 continue
             for point_elem in track_elem.findall("points"):
@@ -264,7 +268,6 @@ def convertBodyKeyPoints(root, key_body_labels, face_body_labels, xml_person_id,
                         key_point.append(float(pos))
                 key_point.append(visibil)
                 key_points.extend(key_point)
-                #prev_pos = pos_arr
                 is_point_available = True
                 # if no point from xml
         if not is_point_available:
@@ -275,8 +278,7 @@ def convertBodyKeyPoints(root, key_body_labels, face_body_labels, xml_person_id,
             key_points.extend(key_point)
             is_point_available = True
 
-    if(len(key_points) < 51):
-        sys.exit("Error length keypoints %s" %len(key_points))
+    assert len(key_points) == 51, "Error length keypoints %s" %len(key_points)
 
 def convert_other_bboxes(coco_dict, this_annot_id, track_elem, track_id, frame_index, cat_name2id):
     for box_elem in track_elem.findall("box"):
@@ -339,7 +341,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    convert(args.cvat_xml, args.coco, args.onlyBoxes, args.withBodyKeyPoints, args.withDummyActions)
+    convert(args.cvat_xml, args.coco, args.onlyBoxes, args.withBodyKeyPoints, args.addDummyActions)
 
 if __name__ == '__main__':
     main()
