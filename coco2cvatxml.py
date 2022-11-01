@@ -1,5 +1,8 @@
 """
-@Author Reginald Van Woensel
+@Created By Reginald Van Woensel
+@Created Date Jul 23 2022
+@Copyright (c) 2022, AUTIMATIC
+
 Convert person skeletons from COCO JSON to CVAT XML
 """
 
