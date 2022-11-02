@@ -14,10 +14,10 @@ from datetime import datetime, date
 from pathlib import Path
 
 # bodykeypoints
-key_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
-face_body_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear"]
+KEY_BODY_LABELS = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
+FACE_BODY_LABELS = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear"]
 
-def write_json(json_path, dic):
+def _write_json(json_path, dic):
     with open(json_path, "w") as f:
         json.dump(dic, f, indent=2)
     print(f"Wrote json to {json_path}")
@@ -66,22 +66,22 @@ def convert(cvat_xml, coco_json_file, only_boxes, with_bodykeypoints, with_dummy
         "licenses": [] #TODO check with geert@autimatic.be
     }
     
-    cat_name2id = add_categories(meta, coco_dict)
+    cat_name2id = _add_categories(meta, coco_dict)
 
     annot_id = 1
-    person_ids = retrieve_person_ids(only_boxes, with_bodykeypoints, with_dummyactions, root)
+    person_ids = _retrieve_person_ids(only_boxes, with_bodykeypoints, with_dummyactions, root)
 
     # Loop through XML according to person ID (ID indicates shapes belonging to a specific unique person)
     print("Loop through XML according to ID")
     for person_id in person_ids:
-        start_frame_per_person, stop_frame_per_person = retrieve_start_and_stop_frame_per_person_id(only_boxes, with_bodykeypoints, root, stop_frame, person_id)
+        start_frame_per_person, stop_frame_per_person = _retrieve_start_and_stop_frame_per_person_id(only_boxes, with_bodykeypoints, root, stop_frame, person_id)
         if stop_frame_per_person == 0:
             continue
         print("Person track %s for start frame %s to end frame %s" % (person_id, start_frame_per_person, stop_frame_per_person))
         for frame_index in range(start_frame_per_person, stop_frame_per_person+1):
             key_points = []
             if with_bodykeypoints:
-                convert_bodykeypoints(root, key_body_labels, face_body_labels, person_id, frame_index, key_points)
+                _convert_bodykeypoints(root, person_id, frame_index, key_points)
 
             # Convert bbox person
             for track_elem in root.findall("track"):
@@ -115,7 +115,7 @@ def convert(cvat_xml, coco_json_file, only_boxes, with_bodykeypoints, with_dummy
                     h = b - y
                     # The person's actions which are captured
                     actions = []
-                    convertActions(with_dummyactions, root, box_elem, frame_index, actions)
+                    _convert_actions(with_dummyactions, root, box_elem, frame_index, actions)
                     annot_dict = {
                         "id": annot_id,
                         "frame_id": frame_idx,
@@ -138,13 +138,13 @@ def convert(cvat_xml, coco_json_file, only_boxes, with_bodykeypoints, with_dummy
         while coco_track_id in used_track_ids:
             coco_track_id +=1
         for frame_index in range(start_frame, stop_frame):
-            convert_other_bboxes(coco_dict, annot_id, track_elem, coco_track_id, frame_index, cat_name2id)
+            _convert_other_bboxes(coco_dict, annot_id, track_elem, coco_track_id, frame_index, cat_name2id)
         used_track_ids.append(coco_track_id)
         annot_id += 1
 
-    write_json(coco_json_file, coco_dict)
+    _write_json(coco_json_file, coco_dict)
 
-def add_categories(meta, coco_dict):
+def _add_categories(meta, coco_dict):
     # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
     # Category ID 1 is for Human.
     cat_dict_person = {"id": 1, "name": "person",
@@ -173,7 +173,7 @@ def add_categories(meta, coco_dict):
             coco_dict["categories"].append(cat_dict)
     return cat_name2id
 
-def retrieve_person_ids(only_boxes, with_bodykeypoints, add_dummyactions, root):
+def _retrieve_person_ids(only_boxes, with_bodykeypoints, add_dummyactions, root):
     if with_bodykeypoints or add_dummyactions:
         # It could happen that the first person retrieved from the CVAT xml does not have a group_id. In that case ID = 0
         person_ids = [0]
@@ -195,7 +195,7 @@ def retrieve_person_ids(only_boxes, with_bodykeypoints, add_dummyactions, root):
                     person_ids.append(person_id)
     return person_ids
 
-def retrieve_start_and_stop_frame_per_person_id(only_boxes, with_bodykeypoints, root, stop_frame, person_id):
+def _retrieve_start_and_stop_frame_per_person_id(only_boxes, with_bodykeypoints, root, stop_frame, person_id):
     start_frame_per_person = stop_frame
     stop_frame_per_person = 0
     for track_elem in root.findall("track"):
@@ -213,7 +213,7 @@ def retrieve_start_and_stop_frame_per_person_id(only_boxes, with_bodykeypoints, 
                 stop_frame_per_person = frame_index
     return start_frame_per_person,stop_frame_per_person
 
-def convertActions(with_dummyactions, root, box_elem, frame_index, actions):
+def _convert_actions(with_dummyactions, root, box_elem, frame_index, actions):
     if with_dummyactions:
         for track_elem in root.findall("track"):
             for points_elem in track_elem.findall("points"):
@@ -239,7 +239,7 @@ def convertActions(with_dummyactions, root, box_elem, frame_index, actions):
             if attr_elem.text is not None:
                 actions.append(str(attr_elem.text.lower()))
 
-def convert_bodykeypoints(root, key_body_labels, face_body_labels, person_id, frame_index, key_points):
+def _convert_bodykeypoints(root, person_id, frame_index, key_points):
     # Iterate over all body parts
     for body_label_idx in range(len(key_body_labels)):
         is_point_available = False
@@ -250,7 +250,7 @@ def convert_bodykeypoints(root, key_body_labels, face_body_labels, person_id, fr
             if (not ('group_id' in track_elem.attrib)) and 0 != person_id:
                 continue
             # if body label different => not the body part to convert in this loop
-            if key_body_labels[body_label_idx] != track_elem.attrib["label"]:
+            if KEY_BODY_LABELS[body_label_idx] != track_elem.attrib["label"]:
                 continue
             for point_elem in track_elem.findall("points"):
                 #  if frame ID different => not the point to convert in this loop
@@ -263,7 +263,7 @@ def convert_bodykeypoints(root, key_body_labels, face_body_labels, person_id, fr
                 elif bool(int(point_elem.attrib["occluded"])):
                     visibil = 1
                 else:
-                    if track_elem.attrib["label"] in face_body_labels:
+                    if track_elem.attrib["label"] in FACE_BODY_LABELS:
                         visibil = 1
                     else:
                         visibil = 2
@@ -290,7 +290,7 @@ def convert_bodykeypoints(root, key_body_labels, face_body_labels, person_id, fr
 
     assert len(key_points) == 51, "Error length keypoints %s" %len(key_points)
 
-def convert_other_bboxes(coco_dict, annot_id, track_elem, track_id, frame_index, cat_name2id):
+def _convert_other_bboxes(coco_dict, annot_id, track_elem, track_id, frame_index, cat_name2id):
     for box_elem in track_elem.findall("box"):
         label_elem = track_elem.attrib["label"]
         label_name = str(label_elem)

@@ -184,7 +184,7 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints, with_dummyaction):
         cvat_track_id = 0
         # Loop through json_data according to track_id (ID remains constant for that person/object in all the sequences)
         for track_id_to_convert in track_ids_to_convert:
-            min_frame_id, max_frame_id = retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert)
+            min_frame_id, max_frame_id = _retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert)
             print("track_id_to_convert %s, min_frame_id %s, max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
 
             category = ""
@@ -213,7 +213,7 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints, with_dummyaction):
                     continue
                 box = data["bbox"]
                 frame_no = data["frame_id"]
-                shape = createShapeBox(box, frame_no, last_frame_id, max_frame_id)
+                shape = _createShapeBox(box, frame_no, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
                 if category == "person":
                     dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(json_track_id))]))
@@ -224,7 +224,7 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints, with_dummyaction):
             if(with_dummyaction and category == "person"):
                 actions = ['Actions']
                 for action in actions:
-                    create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
+                    _create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
                     # Add 1 to track for next object to convert
                     cvat_track_id += 1
             # Convert body key points to XML
@@ -281,7 +281,7 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints, with_dummyaction):
         dumper.close_root()
         print(f"Wrote file {cvat_xml}")
 
-def retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
+def _retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
     max_frame_id = 0
     min_frame_id = float('inf')
     for data in json_data["annotations"]:
@@ -298,7 +298,7 @@ def retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
             min_frame_id = frame_id
     return min_frame_id,max_frame_id
 
-def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
+def _createShapeBox(box, frame_no, last_frame_id, max_frame_id):
     shape = OrderedDict()
     shape.update(OrderedDict([
                     ("xtl", "{:.2f}".format(box[0])),
@@ -315,7 +315,7 @@ def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
         shape["outside"] = str(1)
     return shape
 
-def create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
+def _create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
     dummy_track = {
         'id': str(cvat_track_id),
         'label': action,
