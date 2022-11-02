@@ -148,7 +148,7 @@ def _add_categories(meta, coco_dict):
     # The “categories” object contains a list of categories (e.g. dog, boat) and each of those belongs to a supercategory (e.g. animal, vehicle).
     # Category ID 1 is for Human.
     cat_dict_person = {"id": 1, "name": "person",
-                       "keypoints": key_body_labels,
+                       "keypoints": KEY_BODY_LABELS,
                        "skeleton": [[15, 13], [13, 11], [16, 14], [14, 12], [11, 12],
                         [5, 11], [6, 12], [5, 6], [5, 7], [6, 8], [7, 9],
                         [8, 10], [1, 2], [0, 1], [0, 2], [1, 3], [2, 4],
@@ -165,7 +165,7 @@ def _add_categories(meta, coco_dict):
             label_name = label.find("name").text
             if label_name == "person":
                 continue
-            if label_name in key_body_labels:
+            if label_name in KEY_BODY_LABELS:
                 continue
             cat_name2id[label_name] = cat_id
             cat_dict = {"id": cat_id, "name": label_name, "supercategory": ""}
@@ -241,7 +241,7 @@ def _convert_actions(with_dummyactions, root, box_elem, frame_index, actions):
 
 def _convert_bodykeypoints(root, person_id, frame_index, key_points):
     # Iterate over all body parts
-    for body_label_idx in range(len(key_body_labels)):
+    for body_label_idx in range(len(KEY_BODY_LABELS)):
         is_point_available = False
         for track_elem in root.findall("track"):
             # if group ID different => not the person to convert in this loop
