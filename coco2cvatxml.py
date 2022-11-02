@@ -150,106 +150,107 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
+def convert(coco_json_file, cvat_xml, with_bodykeypoints, with_dummyaction):
+    # Opening the JSON file
+    print(f"Opening the JSON file {coco_json_file}")
+    json_f = open(coco_json_file)
+    track_ids_to_convert = []
+    json_data = json.load(json_f)
+    last_frame_id = 0
+    for data in json_data["annotations"]:
+        json_track_id = data["track_id"]
+        frame_id = data["frame_id"]
+        if json_track_id not in track_ids_to_convert:
+            track_ids_to_convert.append(json_track_id)
+            # set max frame_id
+        if frame_id > last_frame_id:
+            last_frame_id = frame_id
+
+    for data in json_data["annotations"]:
+        cat_name2id = {}
+        for data in json_data["categories"]:
+            label_name = data["name"]
+            this_cat_id = data["id"]
+            cat_name2id[this_cat_id] = label_name
+
+    print("Categories, %s!" % cat_name2id)
+    print("track_ids_to_convert, %s!" % track_ids_to_convert)
+
     # Write the xml file
-    with open(xml_file, 'w') as f:
+    with open(cvat_xml, 'w') as f:
         dumper = XmlAnnotationWriter(f)
         dumper.open_root()
-        # Opening the JSON file
-        print(f"Opening the JSON file {json_file}")
-        json_f = open(json_file)
-        track_ids_to_convert = []
-        json_data = json.load(json_f)
-        last_frame_id = 0
-        for data in json_data["annotations"]:
-            track_id = data["track_id"]
-            frame_id = data["frame_id"]
-            if track_id not in track_ids_to_convert:
-                track_ids_to_convert.append(track_id)
-             # set max frame_id
-            if frame_id > last_frame_id:
-                last_frame_id = frame_id
-
-        for data in json_data["annotations"]:
-            cat_name2id = {}
-            for data in json_data["categories"]:
-                label_name = data["name"]
-                this_cat_id = data["id"]
-                cat_name2id[this_cat_id] = label_name
-
-        print("Categories, %s!" % cat_name2id)
-        print("track_ids_to_convert, %s!" % track_ids_to_convert)
         
-        xml_track_id = 0
+        cvat_track_id = 0
         # Loop through json_data according to track_id (ID remains constant for that person/object in all the sequences)
         for track_id_to_convert in track_ids_to_convert:
             min_frame_id, max_frame_id = retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert)
-            print("track_id_to_convert %s , min_frame_id %s , max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
+            print("track_id_to_convert %s, min_frame_id %s, max_frame_id %s !" %(track_id_to_convert,min_frame_id,max_frame_id))
 
             category = ""
             for data in json_data["annotations"]:
-                track_id = data["track_id"]
+                json_track_id = data["track_id"]
                 # if track ID different => not the person/object to convert in this loop
-                if track_id_to_convert != track_id:
+                if track_id_to_convert != json_track_id:
                     continue
                 this_cat_id = data["category_id"]
                 category = cat_name2id[this_cat_id]
                 break
 
             track = {
-                'id': str(xml_track_id),
+                'id': str(cvat_track_id),
                 'label': category,
                 'group_id': str(track_id_to_convert + 1)
             }
             dumper.open_track(track)
             # Add 1 to track for next object to convert
-            xml_track_id += 1
+            cvat_track_id += 1
             # Convert bounding box to XML
             for data in json_data["annotations"]:
-                track_id = data["track_id"]
+                json_track_id = data["track_id"]
                 # if track ID different => not the person/object to convert in this loop
-                if track_id_to_convert != track_id:
+                if track_id_to_convert != json_track_id:
                     continue
                 box = data["bbox"]
                 frame_no = data["frame_id"]
                 shape = createShapeBox(box, frame_no, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
                 if category == "person":
-                    dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(track_id))]))
+                    dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(json_track_id))]))
                 else:
-                    dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(track_id))]))
+                    dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(json_track_id))]))
                 dumper.close_box()
             dumper.close_track()
-            if(withDummyAction and category == "person"):
+            if(with_dummyaction and category == "person"):
                 actions = ['Actions']
                 for action in actions:
-                    create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
+                    create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id )
                     # Add 1 to track for next object to convert
-                    xml_track_id += 1
+                    cvat_track_id += 1
             # Convert body key points to XML
-            if(category == "person" and withBodyKeyPoints):
+            if(category == "person" and with_bodykeypoints):
                 # bodykeypoint names
                 body_key_labels = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
                 # Iterate over all body parts
                 for bodykey_idx in range(len(body_key_labels)):
                     # Create a track for each key point in the XML
                     track = {
-                        'id': str(xml_track_id),
+                        'id': str(cvat_track_id),
                         'label': body_key_labels[bodykey_idx],
                         'group_id': str(track_id_to_convert + 1)
                     }
                     dumper.open_track(track)
                     # Add 1 to track for next object to convert
-                    xml_track_id += 1
+                    cvat_track_id += 1
                     for data in json_data["annotations"]:
-                        track_id = data["track_id"]
-                        if track_id_to_convert != track_id:
+                        json_track_id = data["track_id"]
+                        if track_id_to_convert != json_track_id:
                             continue
                         frame_no = data["frame_id"]
                         xml_point_idx = 0
                         # x and y indicate pixel positions in the image. z indicates conficence
-                        arr_2d = np.reshape(data["keypoints"], (17, 3))
-                        for keypoint in arr_2d:
+                        arr_2d_keypoints = np.reshape(data["keypoints"], (17, 3))
+                        for keypoint in arr_2d_keypoints:
                             for x, y, z in threewise(keypoint):
                                 # if point idx different => not the bodypart to convert in this loop
                                 if xml_point_idx != bodykey_idx:
@@ -275,10 +276,10 @@ def convert(json_file, xml_file, withBodyKeyPoints, withDummyAction):
                     dumper.close_track()
                     bodykey_idx += 1
         # Closing file
-        print(f"Closing the JSON file {json_file}")
+        print(f"Closing the JSON file {coco_json_file}")
         json_f.close()
         dumper.close_root()
-        print(f"Wrote file {xml_file}")
+        print(f"Wrote file {cvat_xml}")
 
 def retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
     max_frame_id = 0
@@ -314,9 +315,9 @@ def createShapeBox(box, frame_no, last_frame_id, max_frame_id):
         shape["outside"] = str(1)
     return shape
 
-def create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
+def create_dummy_object_func(action, dumper, json_data, cvat_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
     dummy_track = {
-        'id': str(xml_track_id),
+        'id': str(cvat_track_id),
         'label': action,
         'group_id': str(track_id_to_convert + 1)
     }
@@ -353,17 +354,17 @@ def parse_args():
         description='Convert COCO JSON format to CVAT XML annotations'
     )
     parser.add_argument(
-        '--coco', metavar='FILE', required=True,
+        '--coco-json', metavar='FILE', required=True,
         help='FILE for output annotations in JSON format'
     )
     parser.add_argument(
         '--cvat-xml', metavar='FILE', required=True,
-        help='input file with CVAT annotation in xml format'
+        help='input file with CVAT annotations in XML format'
     )
-    parser.add_argument("--withBodyKeyPoints", default=False, action="store_true",
+    parser.add_argument("--with-bodykeypoints", default=False, action="store_true",
                     help="Flag to use body key points")
 
-    parser.add_argument("--withDummyAction", default=False, action="store_true",
+    parser.add_argument("--with-dummyaction", default=False, action="store_true",
                     help="Flag to create dummy action")
 
     return parser.parse_args()
@@ -371,9 +372,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    convert(args.coco, args.cvat_xml, args.withBodyKeyPoints, args.withDummyAction)
+    convert(args.coco_json, args.cvat_xml, args.with_bodykeypoints, args.with_dummyaction)
 
 
 if __name__ == '__main__':
     main()
-# print(stream.getvalue())
