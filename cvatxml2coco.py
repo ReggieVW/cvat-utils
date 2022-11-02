@@ -1,10 +1,10 @@
-"""
+'''
 @Created By Reginald Van Woensel
-@Created Date Jul 23 2022
+@Created Date 13 Apr 2022
 @Copyright (c) 2022, AUTIMATIC
 
 Convert person skeletons from CVAT XML to COCO JSON
-"""
+'''
 
 import xml.etree.ElementTree as ET
 import json
