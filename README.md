@@ -8,19 +8,19 @@ Converts COCO JSON to CVAT XML.
 ## Usage
 
 ```bash
-usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-bodykeypoints]
+usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-personkeypoints]
 
 positional arguments:
   coco-json        Input path to COCO JSON
   cvat-xml         Output path to CVAT XML
-  with-bodykeypoints Use this flag when body key points are included
+  with-personkeypoints Use this flag when person key points are included
 
 ```
 
 ## Examples
 
 ```bash
-python coco2cvatxml.py --coco-json annotations.json --cvat-xml out.xml --with-bodykeypoints
+python coco2cvatxml.py --coco-json annotations.json --cvat-xml out.xml --with-personkeypoints
 ```
 
 # CVAT XML to COCO JSON
@@ -30,19 +30,19 @@ Converts CVAT XML to COCO JSON.
 ## Usage
 
 ```bash
-usage: cvatxml2coco.py --cvat-xml FILE --coco-json FILE [--with-bodykeypoints]
+usage: cvatxml2coco.py --cvat-xml FILE --coco-json FILE [--with-personkeypoints]
 
 positional arguments:
   cvat-xml          Input path to CVAT XML
   coco-json         Output path to COCO JSON
-  with-bodykeypoints        Use this flag when body key points are included
+  with-personkeypoints        Use this flag when person key points are included
 
 ```
 
 ## Examples
 
 ```bash
-python cvatxml2coco.py --cvat-xml annotations.xml --coco-json out.json --with-bodykeypoints
+python cvatxml2coco.py --cvat-xml annotations.xml --coco-json out.json --with-personkeypoints
 ```
 
 # The Annotations
