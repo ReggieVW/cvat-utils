@@ -11,9 +11,9 @@ Converts COCO JSON to CVAT XML.
 usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-personkeypoints]
 
 positional arguments:
-  coco-json        Input path to COCO JSON
-  cvat-xml         Output path to CVAT XML
-  with-personkeypoints Use this flag when person key points are included
+  coco-json               Input path to COCO JSON
+  cvat-xml                Output path to CVAT XML
+  with-personkeypoints    Use this flag when person key points are included
 
 ```
 
@@ -33,8 +33,8 @@ Converts CVAT XML to COCO JSON.
 usage: cvatxml2coco.py --cvat-xml FILE --coco-json FILE [--with-personkeypoints]
 
 positional arguments:
-  cvat-xml          Input path to CVAT XML
-  coco-json         Output path to COCO JSON
+  cvat-xml                    Input path to CVAT XML
+  coco-json                   Output path to COCO JSON
   with-personkeypoints        Use this flag when person key points are included
 
 ```
