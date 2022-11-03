@@ -47,7 +47,7 @@ python cvatxml2coco.py --cvat-xml annotations.xml --coco-json out.json --with-bo
 
 # The Annotations
 
-## key points person
+## Key points person
 There are 17 key points.
 
 
