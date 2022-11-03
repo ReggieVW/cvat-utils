@@ -14,7 +14,7 @@ import numpy as np
 import argparse
 import json
 
-BODY_KEY_LABELS = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
+KEY_POINTS_PERSON_LABELS = [ "nose", "left_eye", "right_eye", "left_ear", "right_ear", "left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle" ]
 
 class XmlAnnotationWriter:
     def __init__(self, file):
@@ -151,7 +151,7 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(coco_json_file, cvat_xml, with_bodykeypoints):
+def convert(coco_json_file, cvat_xml, with_personkeypoints):
     # Opening the JSON file
     print(f"Opening the JSON file {coco_json_file}")
     json_f = open(coco_json_file)
@@ -174,6 +174,11 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints):
             this_cat_id = data["id"]
             cat_name2id[this_cat_id] = label_name
 
+    # if empy set default categories
+    if len(cat_name2id) == 0:
+        cat_name2id[1] = "person"
+
+
     print("Categories, %s!" % cat_name2id)
     print("track_ids_to_convert, %s!" % track_ids_to_convert)
 
@@ -195,7 +200,7 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints):
                 if track_id_to_convert != json_track_id:
                     continue
                 this_cat_id = data["category_id"]
-                category = cat_name2id[this_cat_id]
+                category = cat_name2id.get(this_cat_id)
                 break
 
             track = {
@@ -220,22 +225,25 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints):
                     dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(json_track_id))]))
                 else:
                     dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(json_track_id))]))
-                activity = data["activity"]
-                dumper.add_attribute(OrderedDict([
-                    ("name", "action"),
-                    ("value", str(activity[0]))
-                ]))
+                activity = data.get('activity')
+                if(activity):
+                    dumper.add_attribute(OrderedDict([("name", "action"),("value", activity[0])]))
+                    #for action in activity:
+                    #    dumper.add_attribute(OrderedDict([
+                    #        ("name", action),
+                    #        ("value", "true")
+                    #    ]))
                 dumper.close_box()
             dumper.close_track()
 
-            # Convert body key points to XML
-            if(category == "person" and with_bodykeypoints):
-                # Iterate over all body parts
-                for bodykey_idx in range(len(BODY_KEY_LABELS)):
+            # Convert person key points to XML
+            if(category == "person" and with_personkeypoints):
+                # Iterate over all person key points
+                for person_key_point_idx in range(len(KEY_POINTS_PERSON_LABELS)):
                     # Create a track for each key point in the XML
                     track = {
                         'id': str(cvat_track_id),
-                        'label': BODY_KEY_LABELS[bodykey_idx],
+                        'label': KEY_POINTS_PERSON_LABELS[person_key_point_idx],
                         'group_id': str(track_id_to_convert + 1)
                     }
                     dumper.open_track(track)
@@ -246,14 +254,14 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints):
                         if track_id_to_convert != json_track_id:
                             continue
                         frame_no = data["frame_id"]
-                        point_idx = 0
+                        index = 0
                         assert len(data["keypoints"]) != 0, "Error length keypoints %s" %len(data["keypoints"])
-                        # x and y indicate pixel positions in the image. z indicates conficence
-                        arr_2d_keypoints = np.reshape(data["keypoints"], (17, 3))
-                        for keypoint in arr_2d_keypoints:
+                        arr_keypoints = np.reshape(data["keypoints"], (17, 3))
+                        for keypoint in arr_keypoints:
+                             # x and y indicate pixel positions in the image. z indicates visibility
                             for x, y, z in threewise(keypoint):
-                                # if point idx different => not the bodypart to convert in this loop
-                                if point_idx != bodykey_idx:
+                                # if idx different => not the person key point to convert in this loop
+                                if index != person_key_point_idx:
                                     continue
                                 shape = OrderedDict()
                                 shape["frame"] = str(frame_no)
@@ -272,9 +280,9 @@ def convert(coco_json_file, cvat_xml, with_bodykeypoints):
                                     {"points": '{:.2f},{:.2f}'.format(x, y)})
                                 dumper.open_points(shape)
                                 dumper.close_points()
-                            point_idx += 1
+                            index += 1
                     dumper.close_track()
-                    bodykey_idx += 1
+                    person_key_point_idx += 1
         # Closing file
         print(f"Closing the JSON file {coco_json_file}")
         json_f.close()
@@ -322,21 +330,21 @@ def parse_args():
     )
     parser.add_argument(
         '--coco-json', metavar='FILE', required=True,
-        help='FILE for output annotations in JSON format'
+        help='File for output annotations in JSON format'
     )
     parser.add_argument(
         '--cvat-xml', metavar='FILE', required=True,
-        help='input file with CVAT annotations in XML format'
+        help='Input file with CVAT annotations in XML format'
     )
-    parser.add_argument("--with-bodykeypoints", default=False, action="store_true",
-                    help="Flag to use body key points")
+    parser.add_argument("--with-personkeypoints", default=False, action="store_true",
+                    help="Use this flag when person key points are included")
 
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    convert(args.coco_json, args.cvat_xml, args.with_bodykeypoints)
+    convert(args.coco_json, args.cvat_xml, args.with_personkeypoints)
 
 
 if __name__ == '__main__':
