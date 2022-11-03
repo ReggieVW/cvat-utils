@@ -55,8 +55,8 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints):
     coco_dict = {
         "info": {"description": taskname, "data_created": date_str},
         "categories": [],
-        "annotations": [],
-        "licenses": [] #TODO check with geert@autimatic.be
+        "annotations": []
+        #"licenses": [] TODO check with geert@autimatic.be
     }
 
     cat_name2id = _add_categories(meta, coco_dict)
@@ -84,7 +84,7 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints):
                 # group ID can be zero for the first person
                 if with_personkeypoints and not ('group_id' in track_elem.attrib) and 0 != person_id:
                     continue
-                # when the xml contains only boxes no group ids are provided
+                # when the xml contains only bboxes no group ids are provided
                 if not with_personkeypoints and  int(track_elem.attrib["id"]) != person_id:
                     continue
                 for box_elem in track_elem.findall("box"):
