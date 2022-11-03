@@ -227,7 +227,7 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
                     dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(json_track_id))]))
                 activity = data.get('activity')
                 if(activity):
-                    dumper.add_attribute(OrderedDict([("name", "action"),("value", activity[0])]))
+                    dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
                     #for action in activity:
                     #    dumper.add_attribute(OrderedDict([
                     #        ("name", action),
