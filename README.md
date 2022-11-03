@@ -57,8 +57,8 @@ The annotation json file is in the format of MSCOCO dataset and is a collection 
 ```bash
 {
     "info": {...},
-    "annotations": [...],
     "categories": [...], 
+    "annotations": [...],
 }
 ```
 
