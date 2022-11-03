@@ -8,18 +8,19 @@ Converts COCO JSON to CVAT XML.
 ## Usage
 
 ```bash
-usage: coco2cvatxml.py [-h] --coco FILE --cvat-xml FILE 
+usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-bodykeypoints]
 
 positional arguments:
-  coco             Path to COCO JSON
-  cvat-xml         Path to CVAT XML
+  coco-json        Input path to COCO JSON
+  cvat-xml         Output path to CVAT XML
+  with-bodykeypoints Use this flag when body key points are included
 
 ```
 
 ## Examples
 
 ```bash
-python coco2cvatxml.py --coco task_1.json --cvat-xml annotations.xml
+python coco2cvatxml.py --coco-json annotations.json --cvat-xml out.xml --with-bodykeypoints
 ```
 
 # CVAT XML to COCO JSON
@@ -29,19 +30,19 @@ Converts CVAT XML to COCO JSON.
 ## Usage
 
 ```bash
-usage: cvatxml2coco.py [-h] --cvat-xml FILE [--image-dir DIRECTORY] --coco FILE
+usage: cvatxml2coco.py --cvat-xml FILE --coco-json FILE [--with-bodykeypoints]
 
 positional arguments:
-  cvat-xml          Path to CVAT XML
-  coco              Path to COCO JSON
-  image-dir         Path to images root directory (optional)
+  cvat-xml          Input path to CVAT XML
+  coco-json         Output path to COCO JSON
+  with-bodykeypoints        Use this flag when body key points are included
 
 ```
 
 ## Examples
 
 ```bash
-python cvatxml2coco.py --cvat-xml annotations.xml --coco out.json --image-dir \images\
+python cvatxml2coco.py --cvat-xml annotations.xml --coco-json out.json --with-bodykeypoints
 ```
 
 # The Annotations
@@ -56,7 +57,6 @@ The annotation json file is in the format of MSCOCO dataset and is a collection 
 ```bash
 {
     "info": {...},
-    "images": [...],
     "annotations": [...],
     "categories": [...], 
 }
