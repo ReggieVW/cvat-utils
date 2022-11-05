@@ -1,3 +1,12 @@
+'''
+@Created By Reginald Van Woensel
+@Created Date 13 Apr 2022
+@Copyright (c) 2022, AUTIMATIC
+
+Convert TXT with bounding boxes to COCO JSON
+'''
+
+
 import json
 from datetime import datetime, date
 import os
@@ -47,7 +56,7 @@ def convert(input_txt_file, output_json_file, cvat_coco):
 def parse_args():
     """Parse arguments of command line"""
     parser = argparse.ArgumentParser(
-        description='Convert COCO JSON format to CVAT XML annotations'
+        description='Convert TXT to COCO annotations'
     )
     parser.add_argument(
         '--input-txt-file', metavar='FILE', required=True,
