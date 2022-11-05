@@ -9,12 +9,7 @@ Convert TXT with bounding boxes to COCO JSON
 
 import json
 from datetime import datetime, date
-import os
 import argparse
-
-# Opening JSON file
-
-
 
 def convert(input_txt_file, output_json_file, cvat_coco):
     coco_dict = {}
