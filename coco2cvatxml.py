@@ -336,7 +336,7 @@ def parse_args():
         '--cvat-xml', metavar='FILE', required=True,
         help='Input file with CVAT annotations in XML format'
     )
-    parser.add_argument("--with-personkeypoints", default=False,
+    parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
 
     return parser.parse_args()

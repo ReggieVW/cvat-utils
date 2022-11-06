@@ -312,7 +312,7 @@ def parse_args():
         '--coco-json', metavar='FILE', required=True,
         help='File for output annotations in JSON format'
     )
-    parser.add_argument("--with-personkeypoints", default=False,
+    parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
 
     return parser.parse_args()
