@@ -11,29 +11,18 @@ import json
 from datetime import datetime, date
 import argparse
 
-def convert(input_txt_file, output_json_file, cvat_coco):
+def convert(input_txt_file, output_json_file):
     coco_dict = {}
     date_str = f"{date.today():%Y/%m/%d}"
     coco_dict['info'] = {"description": "extracted from %s" %input_txt_file, "data_created": date_str}
     coco_dict['categories'] = [{"id": 1, "name": "person", "supercategory": ""}]
     coco_dict['annotations'] = []
+    
     with open(input_txt_file, "r") as filestream:
         annotation_id = 0
         for line in filestream:
             currentline = line.split(",")
-            if(cvat_coco):
-                attributes_dict_obj =  {'track_id':int(currentline[1])}
-                dict_obj = {
-                'id':annotation_id,
-                'image_id': int(currentline[0])+1,
-                'keypoints': [],
-                'bbox': [float(currentline[2]), float(currentline[3]), float(currentline[4]), float(currentline[5])],
-                'attributes': attributes_dict_obj,
-                'activity': [],
-                'category_id': 1
-            }
-            else:
-                dict_obj = {
+            dict_obj = {
                     'track_id': int(currentline[1]),
                     'frame_id': int(currentline[0]),
                     'keypoints': [],
@@ -46,6 +35,7 @@ def convert(input_txt_file, output_json_file, cvat_coco):
 
     with open(output_json_file, "w") as fobj:
         json.dump(coco_dict, fobj, indent=2)
+        print(f"Wrote json to {output_json_file}")
 
 
 def parse_args():
@@ -61,15 +51,11 @@ def parse_args():
         '--output-json-file', metavar='FILE', required=True,
         help='Output JSON file'
     )
-
-    parser.add_argument("--cvat-coco", default=False, action="store_true",
-                    help="Use this flag when CVAT coco is required for the output")
-
     return parser.parse_args()
 
-def main():
+def main(): 
     args = parse_args()
-    convert(args.input_txt_file, args.output_json_file, args.cvat_coco)
+    convert(args.input_txt_file, args.output_json_file)
 
 
 if __name__ == '__main__':
