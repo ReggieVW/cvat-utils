@@ -250,7 +250,7 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyaction):
             dumper.close_track()
 
             if(with_dummyaction and category == "person"):
-                _create_dummy_object_func("activity", dumper, json_data, cvat_track_id, track_id_to_convert, frame_id, min_frame_id, max_frame_id, last_frame_id )
+                _create_dummy_object_func("activity", dumper, json_data, cvat_track_id, track_id_to_convert, min_frame_id, max_frame_id, last_frame_id )
                 # Add 1 to track for next object to convert
                 cvat_track_id += 1
 
@@ -353,7 +353,7 @@ def _createShapeBox(box, frame_no, last_frame_id, max_frame_id):
         shape["outside"] = str(1)
     return shape
 
-def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
+def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, min_frame_id, max_frame_id, last_frame_id):
     dummy_track = {
         'id': str(xml_track_id),
         'label': action,
@@ -375,16 +375,16 @@ def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_
             continue
         shape = OrderedDict()
         shape.update(OrderedDict([("points", "0.00,0.00")]))
-        shape["frame"] = str(frame_no)
+        shape["frame"] = str(frame_id)
         shape["keyframe"] = str(0)
         shape["outside"] = str(0)
         shape["occluded"] = str(0)
         shape["z_order"] = str(0)
-        if frame_no == max_frame_id:
+        if frame_id == max_frame_id:
             if last_frame_id != max_frame_id:
                 shape["outside"] = str(1)
             shape["keyframe"] = str(1)
-        if frame_no == min_frame_id:
+        if frame_id == min_frame_id:
             shape["keyframe"] = str(1)
         dumper.open_points(shape)
         activity = data.get('activity')
