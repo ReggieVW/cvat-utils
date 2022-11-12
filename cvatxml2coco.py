@@ -23,30 +23,35 @@ def _write_json(json_path, dic):
     print(f"Wrote json to {json_path}")
 
 
-def convert(cvat_xml, coco_json_file, with_personkeypoints):
+def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyaction):
     # Parse XML
     print(f"Parse XML {cvat_xml}")
     tree = ET.parse(cvat_xml)
     root = tree.getroot()
 
     # META info
+    taskname = "project"
+    date_str = f"{date.today():%Y/%m/%d}"
+    start_frame = 0
+    stop_frame = 0
     meta = root.find("meta")
-    if meta is None:
-        taskname = "project"
-        date_str = f"{date.today():%Y/%m/%d}"
-        start_frame = 0
-        stop_frame = 0
-    else:
+    if meta is not None:
         task = meta.find("task")
+        if task is None:
+            # new XML (server version 2.3)
+            task = meta.find("job")
         taskname_el = task.find("name")
-        taskname = taskname_el.text
+        if taskname_el is not None:
+            taskname = taskname_el.text
         dumped_el = meta.find("dumped")
-        date_dt = datetime.strptime(dumped_el.text.split()[0], "%Y-%m-%d").date()
-        date_str = f"{date_dt:%Y/%m/%d}"
-        start_frame_el = task.find("start_frame")
-        start_frame = int(start_frame_el.text)
-        stop_frame_el = task.find("stop_frame")
-        stop_frame = int(stop_frame_el.text)
+        if dumped_el is not None:
+            date_dt = datetime.strptime(dumped_el.text.split()[0], "%Y-%m-%d").date()
+            date_str = f"{date_dt:%Y/%m/%d}"
+        if task is not None:
+            start_frame_el = task.find("start_frame")
+            stop_frame_el = task.find("stop_frame")
+            start_frame = int(start_frame_el.text)
+            stop_frame = int(stop_frame_el.text)
 
     if not coco_json_file:
         coco_json_file = f"{taskname}.json"
@@ -108,7 +113,7 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints):
                     h = b - y
                     # The person's actions which are captured
                     actions = []
-                    _convert_actions(box_elem, actions)
+                    _convert_actions(root, frame_idx, person_id, box_elem, actions, with_dummyaction)
                     annot_dict = {
                         "id": annot_id,
                         "frame_id": frame_idx,
@@ -149,7 +154,11 @@ def _add_categories(meta, coco_dict):
     # Other categories than person
     cat_id = 2
     if meta is not None:
-        labels_el = meta.find("task").find("labels")
+        task = meta.find("task")
+        if task is None:
+            # version 2.3
+            task = meta.find("job")
+        labels_el = task.find("labels")
         for label_el in labels_el.findall("label"):
             label_name = label_el.find("name").text
             if label_name == "person":
@@ -205,15 +214,34 @@ def _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, root, sto
                 stop_frame_per_person = frame_index
     return start_frame_per_person,stop_frame_per_person
 
-def _convert_actions(box_elem, actions):
-    #checkbox
-    for attr_elem in box_elem.findall("attribute"):
-        if attr_elem.text is not None and str(attr_elem.text.lower()) == "true":
-            actions.append(attr_elem.attrib["name"])
-    #list
-    for attr_elem in box_elem.findall("attribute"):
-        if attr_elem.text is not None:
-            actions.append(str(attr_elem.text.lower()))
+def _convert_actions(root, frame_index, person_id, box_elem, actions, with_dummyaction):
+    if with_dummyaction:
+        for track_elem2 in root.findall("track"):
+            if ("group_id" not in track_elem2.attrib or int(track_elem2.attrib["group_id"]) != person_id):
+                continue
+            for points_elem in track_elem2.findall("points"):
+                if int(points_elem.attrib["frame"]) != frame_index:
+                    continue
+                if bool(int(points_elem.attrib["outside"])):
+                    continue
+                #checkbox
+                for attr_elem in points_elem.findall("attribute"):
+                    if attr_elem.text is not None and str(attr_elem.text.lower()) == "true":
+                        actions.append(attr_elem.attrib["name"])
+                #list
+                for attr_elem in points_elem.findall("attribute"):
+                    if attr_elem.text is not None:
+                        if (attr_elem.attrib["name"] != "orig_track_id" and attr_elem.text != "no action"):
+                            actions.append(str(attr_elem.text.lower()))
+    else:
+         #checkbox
+        for attr_elem in box_elem.findall("attribute"):
+            if attr_elem.text is not None and str(attr_elem.text.lower()) == "true":
+                actions.append(attr_elem.attrib["name"])
+        #list
+        for attr_elem in box_elem.findall("attribute"):
+            if attr_elem.text is not None:
+                actions.append(str(attr_elem.text.lower()))
 
 def _convert_personkeypoints(root, person_id, frame_index, key_points):
     # Iterate over all person key points
@@ -236,7 +264,6 @@ def _convert_personkeypoints(root, person_id, frame_index, key_points):
                     continue
                 # Indicates visibility— 0: outside, 1: labeled but not visible, and 2: labeled and visible
                 if bool(int(point_elem.attrib["outside"])):
-                    print("outside")
                     visibil = 0
                 elif bool(int(point_elem.attrib["occluded"])):
                     visibil = 1
@@ -314,12 +341,14 @@ def parse_args():
     )
     parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
+    parser.add_argument("--with-dummyaction", default=False, action="store_true",
+                    help="Flag to use dummy actions to extract activity")
 
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    convert(args.cvat_xml, args.coco_json, args.with_personkeypoints)
+    convert(args.cvat_xml, args.coco_json, args.with_personkeypoints, args.with_dummyaction)
 
 if __name__ == '__main__':
     main()

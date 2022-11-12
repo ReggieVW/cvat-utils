@@ -151,7 +151,7 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(coco_json_file, cvat_xml, with_personkeypoints):
+def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyaction):
     # Opening the JSON file
     print(f"Opening the JSON file {coco_json_file}")
     json_f = open(coco_json_file)
@@ -159,8 +159,14 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
     json_data = json.load(json_f)
     last_frame_id = 0
     for data in json_data["annotations"]:
-        json_track_id = data["track_id"]
-        frame_id = data["frame_id"]
+        if "track_id" in data:
+            json_track_id = data["track_id"]
+        elif "attributes" in data and "track_id" in data["attributes"]:
+            json_track_id = data["attributes"]["track_id"]
+        if "frame_id" in data:
+            frame_id = data["frame_id"]
+        elif "image_id" in data:
+            frame_id = data["image_id"] - 1
         if json_track_id not in track_ids_to_convert:
             track_ids_to_convert.append(json_track_id)
             # set max frame_id
@@ -178,7 +184,6 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
     if len(cat_name2id) == 0:
         cat_name2id[1] = "person"
 
-
     print("Categories, %s!" % cat_name2id)
     print("track_ids_to_convert, %s!" % track_ids_to_convert)
 
@@ -195,7 +200,10 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
 
             category = ""
             for data in json_data["annotations"]:
-                json_track_id = data["track_id"]
+                if "track_id" in data:
+                    json_track_id = data["track_id"]
+                elif "attributes" in data and "track_id" in data["attributes"]:
+                    json_track_id = data["attributes"]["track_id"]
                 # if track ID different => not the person/object to convert in this loop
                 if track_id_to_convert != json_track_id:
                     continue
@@ -213,21 +221,26 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
             cvat_track_id += 1
             # Convert bounding box to XML
             for data in json_data["annotations"]:
-                json_track_id = data["track_id"]
+                if "track_id" in data:
+                    json_track_id = data["track_id"]
+                elif "attributes" in data and "track_id" in data["attributes"]:
+                    json_track_id = data["attributes"]["track_id"]
                 # if track ID different => not the person/object to convert in this loop
                 if track_id_to_convert != json_track_id:
                     continue
+                if "frame_id" in data:
+                    frame_id = data["frame_id"]
+                elif "image_id" in data:
+                    frame_id = data["image_id"] - 1
                 box = data["bbox"]
-                frame_no = data["frame_id"]
-                shape = _createShapeBox(box, frame_no, last_frame_id, max_frame_id)
+                shape = _createShapeBox(box, frame_id, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
-                if category == "person":
-                    dumper.add_attribute(OrderedDict([("name", "person_track_id"),("value", str(json_track_id))]))
-                else:
-                    dumper.add_attribute(OrderedDict([("name", "object_track_id"),("value", str(json_track_id))]))
                 activity = data.get('activity')
-                if(activity):
-                    dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
+                if(activity or with_dummyaction):
+                    if(with_dummyaction and category == "person"):
+                        dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
+                    else:
+                        dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
                     #for action in activity:
                     #    dumper.add_attribute(OrderedDict([
                     #        ("name", action),
@@ -235,6 +248,11 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
                     #    ]))
                 dumper.close_box()
             dumper.close_track()
+
+            if(with_dummyaction and category == "person"):
+                _create_dummy_object_func("activity", dumper, json_data, cvat_track_id, track_id_to_convert, frame_id, min_frame_id, max_frame_id, last_frame_id )
+                # Add 1 to track for next object to convert
+                cvat_track_id += 1
 
             # Convert person key points to XML
             if(category == "person" and with_personkeypoints):
@@ -250,10 +268,16 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
                     # Add 1 to track for next object to convert
                     cvat_track_id += 1
                     for data in json_data["annotations"]:
-                        json_track_id = data["track_id"]
+                        if "track_id" in data:
+                            json_track_id = data["track_id"]
+                        elif "attributes" in data and "track_id" in data["attributes"]:
+                            json_track_id = data["attributes"]["track_id"]
                         if track_id_to_convert != json_track_id:
                             continue
-                        frame_no = data["frame_id"]
+                        if "frame_id" in data:
+                            frame_id = data["frame_id"]
+                        elif "image_id" in data:
+                            frame_id = data["image_id"] - 1
                         index = 0
                         assert len(data["keypoints"]) != 0, "Error length keypoints %s" %len(data["keypoints"])
                         arr_keypoints = np.reshape(data["keypoints"], (17, 3))
@@ -264,12 +288,12 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints):
                                 if index != person_key_point_idx:
                                     continue
                                 shape = OrderedDict()
-                                shape["frame"] = str(frame_no)
+                                shape["frame"] = str(frame_id)
                                 shape["keyframe"] = str(1)
                                 shape["occluded"] = str(0)
                                 # if last point from sequence
                                 shape["outside"] = str(0)
-                                if frame_no == max_frame_id and last_frame_id != max_frame_id:
+                                if frame_id == max_frame_id and last_frame_id != max_frame_id:
                                     shape["outside"] = str(1)
                                 if z == 0:
                                     shape["outside"] = str(1)
@@ -293,10 +317,16 @@ def _retrieve_min_and_max_frame_for_track_id(json_data, track_id_to_convert):
     max_frame_id = 0
     min_frame_id = float('inf')
     for data in json_data["annotations"]:
-        track_id = data["track_id"]
-        frame_id = data["frame_id"]
+        if "track_id" in data:
+            json_track_id = data["track_id"]
+        elif "attributes" in data and "track_id" in data["attributes"]:
+            json_track_id = data["attributes"]["track_id"]
+        if "frame_id" in data:
+            frame_id = data["frame_id"]
+        elif "image_id" in data:
+            frame_id = data["image_id"] - 1
         # if track ID different => not the person/object to convert in this loop
-        if track_id_to_convert != track_id:
+        if track_id_to_convert != json_track_id:
             continue
         # set max frame_id
         if frame_id > max_frame_id:
@@ -323,6 +353,49 @@ def _createShapeBox(box, frame_no, last_frame_id, max_frame_id):
         shape["outside"] = str(1)
     return shape
 
+def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_to_convert, frame_no, min_frame_id, max_frame_id, last_frame_id):
+    dummy_track = {
+        'id': str(xml_track_id),
+        'label': action,
+        'group_id': str(track_id_to_convert + 1)
+    }
+    dumper.open_track(dummy_track)
+    # Convert bounding box to XML
+    for data in json_data["annotations"]:
+        if "track_id" in data:
+            json_track_id = data["track_id"]
+        elif "attributes" in data and "track_id" in data["attributes"]:
+            json_track_id = data["attributes"]["track_id"]
+        if "frame_id" in data:
+            frame_id = data["frame_id"]
+        elif "image_id" in data:
+            frame_id = data["image_id"] - 1
+        # if track ID different => not the person/object to convert in this loop
+        if track_id_to_convert != json_track_id:
+            continue
+        shape = OrderedDict()
+        shape.update(OrderedDict([("points", "0.00,0.00")]))
+        shape["frame"] = str(frame_no)
+        shape["keyframe"] = str(0)
+        shape["outside"] = str(0)
+        shape["occluded"] = str(0)
+        shape["z_order"] = str(0)
+        if frame_no == max_frame_id:
+            if last_frame_id != max_frame_id:
+                shape["outside"] = str(1)
+            shape["keyframe"] = str(1)
+        if frame_no == min_frame_id:
+            shape["keyframe"] = str(1)
+        dumper.open_points(shape)
+        activity = data.get('activity')
+        if(activity):
+            dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
+        else:
+            dumper.add_attribute(OrderedDict([("name", "activity"),("value", "no action")]))
+        dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
+        dumper.close_points()
+    dumper.close_track()
+
 def parse_args():
     """Parse arguments of command line"""
     parser = argparse.ArgumentParser(
@@ -338,13 +411,15 @@ def parse_args():
     )
     parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
+    parser.add_argument("--with-dummyaction", default=False, action='store_true',
+                    help="Flag to create dummy action")
 
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    convert(args.coco_json, args.cvat_xml, args.with_personkeypoints)
+    convert(args.coco_json, args.cvat_xml, args.with_personkeypoints, args.with_dummyaction)
 
 
 if __name__ == '__main__':
