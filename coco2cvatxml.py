@@ -151,7 +151,7 @@ def fourwise(iterable):
     return zip(a, a, a, a)
 
 
-def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyaction):
+def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyobject_activity):
     # Opening the JSON file
     print(f"Opening the JSON file {coco_json_file}")
     json_f = open(coco_json_file)
@@ -235,12 +235,19 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyaction):
                 box = data["bbox"]
                 shape = _createShapeBox(box, frame_id, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
-                activity = data.get('activity')
-                if(activity or with_dummyaction):
-                    if(with_dummyaction and category == "person"):
-                        dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
-                    else:
+                activity = None
+                if "attributes" in data and data["attributes"]["activity"]:
+                    activity = data["attributes"]["activity"]
+                if "activity" in data:
+                    activity = data["activity"]
+                #if(activity or with_dummyobject_activity):
+                if(with_dummyobject_activity and category == "person"):
+                    dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
+                if(not with_dummyobject_activity and category == "person"):
+                    if len(activity) > 0 :
                         dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
+                    else:
+                        dumper.add_attribute(OrderedDict([("name", "activity"),("value", "no action")]))
                     #for action in activity:
                     #    dumper.add_attribute(OrderedDict([
                     #        ("name", action),
@@ -249,7 +256,7 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyaction):
                 dumper.close_box()
             dumper.close_track()
 
-            if(with_dummyaction and category == "person"):
+            if(with_dummyobject_activity and category == "person"):
                 _create_dummy_object_func("activity", dumper, json_data, cvat_track_id, track_id_to_convert, min_frame_id, max_frame_id, last_frame_id )
                 # Add 1 to track for next object to convert
                 cvat_track_id += 1
@@ -387,10 +394,14 @@ def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_
         if frame_id == min_frame_id:
             shape["keyframe"] = str(1)
         dumper.open_points(shape)
-        activity = data.get('activity')
-        if(activity):
+        activity = None
+        if "attributes" in data and data["attributes"]["activity"]:
+            activity = data["attributes"]["activity"]
+        if "activity" in data:
+            activity = data["activity"]
+        if(len(activity) > 0):
             dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
-        else:
+        else: 
             dumper.add_attribute(OrderedDict([("name", "activity"),("value", "no action")]))
         dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
         dumper.close_points()
@@ -411,15 +422,15 @@ def parse_args():
     )
     parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
-    parser.add_argument("--with-dummyaction", default=False, action='store_true',
-                    help="Flag to create dummy action")
+    parser.add_argument("--with-dummyobject-activity", default=False, action='store_true',
+                    help="Flag to create dummy object activity")
 
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    convert(args.coco_json, args.cvat_xml, args.with_personkeypoints, args.with_dummyaction)
+    convert(args.coco_json, args.cvat_xml, args.with_personkeypoints, args.with_dummyobject_activity)
 
 
 if __name__ == '__main__':

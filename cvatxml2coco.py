@@ -23,7 +23,7 @@ def _write_json(json_path, dic):
     print(f"Wrote json to {json_path}")
 
 
-def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyaction):
+def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyobject_activity):
     # Parse XML
     print(f"Parse XML {cvat_xml}")
     tree = ET.parse(cvat_xml)
@@ -67,12 +67,12 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyaction):
     cat_name2id = _add_categories(meta, coco_dict)
 
     annot_id = 1
-    person_ids = _retrieve_person_ids(with_personkeypoints, with_dummyaction, root, stop_frame)
+    person_ids = _retrieve_person_ids(with_personkeypoints, with_dummyobject_activity, root, stop_frame)
 
     # Loop through XML according to person ID (ID indicates shapes belonging to a specific unique person)
     print("Loop through XML according to ID")
     for person_id in person_ids:
-        start_frame_per_person, stop_frame_per_person = _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyaction, root, stop_frame, person_id)
+        start_frame_per_person, stop_frame_per_person = _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyobject_activity, root, stop_frame, person_id)
         if stop_frame_per_person == 0:
             continue
         print("Person track %s for start frame %s to end frame %s" % (person_id, start_frame_per_person, stop_frame_per_person))
@@ -84,13 +84,13 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyaction):
             # Convert bbox person
             for track_elem in root.findall("track"):
                 # group ID different => not the person to convert in this loop
-                if (with_personkeypoints or with_dummyaction) and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != person_id:
+                if (with_personkeypoints or with_dummyobject_activity) and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != person_id:
                     continue
                 # group ID can be zero for the first person
-                if (with_personkeypoints or with_dummyaction) and not ('group_id' in track_elem.attrib) and 0 != person_id:
+                if (with_personkeypoints or with_dummyobject_activity) and not ('group_id' in track_elem.attrib) and 0 != person_id:
                     continue
                 # when the xml contains only bboxes no group ids are provided
-                if not (with_personkeypoints or with_dummyaction) and  int(track_elem.attrib["id"]) != person_id:
+                if not (with_personkeypoints or with_dummyobject_activity) and  int(track_elem.attrib["id"]) != person_id:
                     continue
                 for box_elem in track_elem.findall("box"):
                     label_elem = track_elem.attrib["label"]
@@ -112,7 +112,7 @@ def convert(cvat_xml, coco_json_file, with_personkeypoints, with_dummyaction):
                     h = b - y
                     # The person's actions which are captured
                     actions = []
-                    _convert_actions(root, frame_index, person_id, box_elem, actions, with_dummyaction)
+                    _convert_actions(root, frame_index, person_id, box_elem, actions, with_dummyobject_activity)
                     annot_dict = {
                         "id": annot_id,
                         "frame_id": frame_index,
@@ -170,11 +170,11 @@ def _add_categories(meta, coco_dict):
             coco_dict["categories"].append(cat_dict)
     return cat_name2id
 
-def _retrieve_person_ids(with_personkeypoints, with_dummyaction, root, stop_frame):
-    if with_personkeypoints or with_dummyaction:
+def _retrieve_person_ids(with_personkeypoints, with_dummyobject_activity, root, stop_frame):
+    if with_personkeypoints or with_dummyobject_activity:
         person_ids = []
         # It could happen that the first person retrieved from the CVAT xml does not have a group_id. In that case add ID = 0
-        start_frame_per_person, stop_frame_per_person = _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyaction, root, stop_frame, 0)
+        start_frame_per_person, stop_frame_per_person = _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyobject_activity, root, stop_frame, 0)
         if(stop_frame_per_person > 0):
             person_ids = [0]
         for track_elem in root.findall("track"):
@@ -195,15 +195,15 @@ def _retrieve_person_ids(with_personkeypoints, with_dummyaction, root, stop_fram
                     person_ids.append(person_id)
     return person_ids
 
-def _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyaction, root, stop_frame, person_id):
+def _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dummyobject_activity, root, stop_frame, person_id):
     start_frame_per_person = stop_frame
     stop_frame_per_person = 0
     for track_elem in root.findall("track"):
         if track_elem.attrib["label"] != "person":
             continue
-        if (with_personkeypoints or with_dummyaction) and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != person_id:
+        if (with_personkeypoints or with_dummyobject_activity) and ('group_id' in track_elem.attrib) and int(track_elem.attrib["group_id"]) != person_id:
             continue
-        if not (with_personkeypoints or with_dummyaction) and int(track_elem.attrib["id"]) != person_id:
+        if not (with_personkeypoints or with_dummyobject_activity) and int(track_elem.attrib["id"]) != person_id:
              continue
         for box_elem in track_elem.findall("box"):
             frame_index = int(box_elem.attrib["frame"])
@@ -213,8 +213,8 @@ def _retrieve_start_and_stop_frame_per_person_id(with_personkeypoints, with_dumm
                 stop_frame_per_person = frame_index
     return start_frame_per_person,stop_frame_per_person
 
-def _convert_actions(root, frame_index, person_id, box_elem, actions, with_dummyaction):
-    if with_dummyaction:
+def _convert_actions(root, frame_index, person_id, box_elem, actions, with_dummyobject_activity):
+    if with_dummyobject_activity:
         for track_elem2 in root.findall("track"):
             if ("group_id" not in track_elem2.attrib or int(track_elem2.attrib["group_id"]) != person_id):
                 continue
@@ -326,6 +326,7 @@ def _convert_other_bboxes(coco_dict, annot_id, track_elem, track_id, frame_index
             "track_id": track_id,
             "occluded": occluded
         }
+        print(annot_dict)
         coco_dict["annotations"].append(annot_dict)
 
 def parse_args():
@@ -343,14 +344,14 @@ def parse_args():
     )
     parser.add_argument("--with-personkeypoints", default=False, action='store_true',
                     help="Use this flag when person key points are included")
-    parser.add_argument("--with-dummyaction", default=False, action="store_true",
-                    help="Flag to use dummy actions to extract activity")
+    parser.add_argument("--with-dummyobject-activity", default=False, action="store_true",
+                    help="Flag to use dummy object activity")
 
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    convert(args.cvat_xml, args.coco_json, args.with_personkeypoints, args.with_dummyaction)
+    convert(args.cvat_xml, args.coco_json, args.with_personkeypoints, args.with_dummyobject_activity)
 
 if __name__ == '__main__':
     main()
