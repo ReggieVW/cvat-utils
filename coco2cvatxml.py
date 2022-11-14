@@ -236,15 +236,15 @@ def convert(coco_json_file, cvat_xml, with_personkeypoints, with_dummyobject_act
                 shape = _createShapeBox(box, frame_id, last_frame_id, max_frame_id)
                 dumper.open_box(shape)
                 activity = None
-                if "attributes" in data and data["attributes"]["activity"]:
-                    activity = data["attributes"]["activity"]
                 if "activity" in data:
                     activity = data["activity"]
+                if "attributes" in data and "activity" in data["attributes"]:
+                    activity = data["attributes"]["activity"]
                 #if(activity or with_dummyobject_activity):
                 if(with_dummyobject_activity and category == "person"):
                     dumper.add_attribute(OrderedDict([("name", "orig_track_id"),("value", str(track_id_to_convert))]))
                 if(not with_dummyobject_activity and category == "person"):
-                    if len(activity) > 0 :
+                    if activity is not None and len(activity) > 0 :
                         dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
                     else:
                         dumper.add_attribute(OrderedDict([("name", "activity"),("value", "no action")]))
@@ -395,11 +395,11 @@ def _create_dummy_object_func(action, dumper, json_data, xml_track_id, track_id_
             shape["keyframe"] = str(1)
         dumper.open_points(shape)
         activity = None
-        if "attributes" in data and data["attributes"]["activity"]:
-            activity = data["attributes"]["activity"]
         if "activity" in data:
             activity = data["activity"]
-        if(len(activity) > 0):
+        if "attributes" in data and "activity" in data["attributes"]:
+            activity = data["attributes"]["activity"]
+        if activity is not None and len(activity) > 0 :
             dumper.add_attribute(OrderedDict([("name", "activity"),("value", activity[0])]))
         else: 
             dumper.add_attribute(OrderedDict([("name", "activity"),("value", "no action")]))
