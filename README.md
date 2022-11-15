@@ -8,12 +8,13 @@ Converts COCO JSON to CVAT XML.
 ## Usage
 
 ```bash
-usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-personkeypoints]
+usage: coco2cvatxml.py --coco-json FILE --cvat-xml FILE [--with-personkeypoints] [--with-dummyobject-activity]
 
 positional arguments:
-  coco-json               Input path to COCO JSON
-  cvat-xml                Output path to CVAT XML
-  with-personkeypoints    Use this flag when person key points are included
+  coco-json                   Input path to COCO JSON
+  cvat-xml                    Output path to CVAT XML
+  with-personkeypoints        Use this flag when person key points are included
+  with-dummyobject-activity   Flag to create dummy object activity
 
 ```
 
@@ -36,6 +37,7 @@ positional arguments:
   cvat-xml                    Input path to CVAT XML
   coco-json                   Output path to COCO JSON
   with-personkeypoints        Use this flag when person key points are included
+  with-dummyobject-activity   Flag to use dummy object activity
 
 ```
 
