@@ -54,7 +54,7 @@ There are 17 key points.
 
 
 ## COCO JSON
-The annotation json file is in the format of MSCOCO dataset and is a collection of “info”, “images”, “annotations”, “categories”. There is one annotation file for one video which contains the annotations from the frames in the video. 
+The annotation json file is in the format of MSCOCO dataset and is a collection of “info”, “annotations”, “categories”. There is one annotation file for one video which contains the annotations from the frames in the video. 
 
 ```bash
 {
